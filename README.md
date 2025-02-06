@@ -10,4 +10,4 @@ pip install anomaly-agent
 
 ## Usage
 
-See the [example.ipynb](example.ipynb) for a usage example.
+See the [example.ipynb](https://github.com/andrewm4894/anomaly-agent/tree/main/notebooks/example.ipynb) for some usage examples.

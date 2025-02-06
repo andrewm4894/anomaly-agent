@@ -47,7 +47,13 @@ def plot_df(
     for i, col in enumerate(variable_columns):
         # Plot original time series
         fig.add_trace(
-            go.Scatter(x=df[timestamp_col], y=df[col], mode="lines+markers", name=col),
+            go.Scatter(
+                x=df[timestamp_col],
+                y=df[col],
+                mode="lines+markers",
+                name=col,
+                showlegend=False,
+            ),
             row=i + 1,
             col=1,
         )
