@@ -39,21 +39,34 @@ class AnomalyAgent:
         )
         self.chain = self.prompt | self.llm
 
+        # Add verification chain
+        self.verify_prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                "You are an expert at verifying anomaly detections. Review the time series and the detected anomalies to confirm if they are genuine anomalies."
+            ),
+            (
+                "human",
+                "Variable name: {variable_name}\nTime series:\n{time_series}\n\nDetected anomalies:\n{detected_anomalies}\n\nPlease verify these anomalies and return only the confirmed ones."
+            )
+        ])
+        self.verify_chain = self.verify_prompt | self.llm
+
     def detect_anomalies(
-        self, df: pd.DataFrame, timestamp_col: str = "timestamp"
+        self, df: pd.DataFrame, timestamp_col: str = "timestamp", verify: bool = True
     ) -> Dict[str, AnomalyList]:
         """Detect anomalies in the given time series data for all numeric columns except timestamp.
 
         Args:
             df: DataFrame containing the time series data
             timestamp_col: Name of the timestamp column
+            verify: Whether to verify the detected anomalies using a second pass
 
         Returns:
             Dictionary mapping column names to their respective AnomalyList
         """
         # Get all columns except timestamp
         value_cols = [col for col in df.columns if col != timestamp_col]
-
         anomalies: Dict[str, AnomalyList] = {}
 
         # Process each column
@@ -62,6 +75,22 @@ class AnomalyAgent:
             result = self.chain.invoke(
                 {"time_series": time_series, "variable_name": value_col}
             )
+            
+            if verify:
+                # Convert detected anomalies to string format for verification
+                detected_str = "\n".join([
+                    f"Timestamp: {a.timestamp}, Value: {a.variable_value}, Description: {a.anomaly_description}"
+                    for a in result.anomalies
+                ])
+                
+                # Verify the anomalies
+                verified_result = self.verify_chain.invoke({
+                    "time_series": time_series,
+                    "variable_name": value_col,
+                    "detected_anomalies": detected_str
+                })
+                result = verified_result
+
             anomalies[value_col] = result
 
         return anomalies
