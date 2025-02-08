@@ -9,7 +9,8 @@ def plot_df(
     show_anomalies: bool = True,
     anomaly_suffix: str = "_anomaly_flag",
     title: str = "",
-) -> None:
+    return_fig: bool = False,
+) -> go.Figure | None:
     """
 
     Plot each time series column from the DataFrame on separate subplots using Plotly.
@@ -22,9 +23,15 @@ def plot_df(
             For each column 'col', looks for 'col{anomaly_suffix}' in the DataFrame.
         anomaly_suffix (str): Suffix used for anomaly flag columns. Default is '_anomaly_flag'.
             For a column 'temperature', it will look for 'temperature_anomaly_flag'.
+        return_fig (bool): If True, returns the figure object instead of displaying it.
+            Default is False.
 
     The function creates a subplot for each variable column (all columns except the timestamp),
     with the x-axis representing the timestamps.
+
+    Returns:
+        go.Figure | None: If return_fig is True, returns the Plotly figure object.
+            Otherwise returns None.
     """
     # Identify variable columns (all columns except the timestamp column and anomaly flags)
     variable_columns = [
@@ -80,5 +87,9 @@ def plot_df(
     # Update layout settings: adjust the overall height based on the number of plots
     fig.update_layout(height=300 * n_plots, width=800, title_text=title)
 
-    # Display the plot
+    # Either return the figure or display it
+    if return_fig:
+        return fig
+    
     fig.show()
+    return None
