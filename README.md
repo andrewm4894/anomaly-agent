@@ -116,67 +116,12 @@ df_anomalies_long = anomaly_agent.get_anomalies_df(anomalies)
 df_anomalies_long.head()
 ```
 
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
+```
+	timestamp	variable_name	value	description
+0	2020-02-05	var1	3.279153	Abrupt spike in value, significantly higher th...
+1	2020-02-15	var1	5.001551	Abrupt spike in value, significantly higher th...
+2	2020-02-20	var1	3.526827	Abrupt spike in value, significantly higher th...
+3	2020-03-23	var1	3.735584	Abrupt spike in value, significantly higher th...
+4	2020-04-05	var1	8.207361	Abrupt spike in value, significantly higher th...
 
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>variable_name</th>
-      <th>value</th>
-      <th>description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>2020-02-05</td>
-      <td>var1</td>
-      <td>3.279153</td>
-      <td>Abrupt spike in value, significantly higher th...</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>2020-02-15</td>
-      <td>var1</td>
-      <td>5.001551</td>
-      <td>Abrupt spike in value, significantly higher th...</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>2020-02-20</td>
-      <td>var1</td>
-      <td>3.526827</td>
-      <td>Abrupt spike in value, significantly higher th...</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>2020-03-23</td>
-      <td>var1</td>
-      <td>3.735584</td>
-      <td>Abrupt spike in value, significantly higher th...</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>2020-04-05</td>
-      <td>var1</td>
-      <td>8.207361</td>
-      <td>Abrupt spike in value, significantly higher th...</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+```
