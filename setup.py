@@ -22,7 +22,7 @@ except FileNotFoundError:
 
 setup(
     name="anomaly-agent",
-    version="0.3.0",
+    version="0.4.0",
     author="Andrew Maguire",
     author_email="andrewm4894@gmail.com",
     description="A package for detecting anomalies in time series data using LLMs",

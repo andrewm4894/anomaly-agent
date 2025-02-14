@@ -87,7 +87,7 @@ def make_df(
 
 def make_anomaly_config(
     enabled: bool = True,
-    fraction: float = 0.1,
+    fraction: float = 0.05,
     methods: list[str] = ["spike", "drop", "shift", "noise"],
     spike_factor: float = 10,
     shift_value: float = 3,

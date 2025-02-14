@@ -18,11 +18,12 @@ class AnomalyList(BaseModel):
 
 
 class AnomalyAgent:
-    def __init__(self, model_name: str = "gpt-4o-mini"):
+    def __init__(self, model_name: str = "gpt-4o-mini", timestamp_col: str = "timestamp"):
         """Initialize the AnomalyAgent with a specific model.
 
         Args:
             model_name: The name of the OpenAI model to use
+            timestamp_col: The name of the timestamp column
         """
         self.llm = ChatOpenAI(model=model_name).with_structured_output(AnomalyList)
         self.prompt = ChatPromptTemplate.from_messages(
@@ -38,6 +39,7 @@ class AnomalyAgent:
             ]
         )
         self.chain = self.prompt | self.llm
+        self.timestamp_col = timestamp_col
 
         # Add verification chain
         self.verify_prompt = ChatPromptTemplate.from_messages([
@@ -65,6 +67,9 @@ class AnomalyAgent:
         Returns:
             Dictionary mapping column names to their respective AnomalyList
         """
+        # Set the timestamp column
+        self.timestamp_col = timestamp_col
+        
         # Get all columns except timestamp
         value_cols = [col for col in df.columns if col != timestamp_col]
         anomalies: Dict[str, AnomalyList] = {}
@@ -79,7 +84,7 @@ class AnomalyAgent:
             if verify:
                 # Convert detected anomalies to string format for verification
                 detected_str = "\n".join([
-                    f"Timestamp: {a.timestamp}, Value: {a.variable_value}, Description: {a.anomaly_description}"
+                    f"{self.timestamp_col}: {a.timestamp}, {value_col}: {a.variable_value}, Description: {a.anomaly_description}"
                     for a in result.anomalies
                 ])
                 
@@ -119,10 +124,10 @@ class AnomalyAgent:
                 for anomaly in anomaly_list.anomalies:
                     rows.append(
                         {
-                            "timestamp": pd.to_datetime(anomaly.timestamp),
+                            self.timestamp_col : pd.to_datetime(anomaly.timestamp),
                             "variable_name": variable_name,
                             "value": anomaly.variable_value,
-                            "description": anomaly.anomaly_description,
+                            "anomaly_description": anomaly.anomaly_description,
                         }
                     )
             return pd.DataFrame(rows)
@@ -138,5 +143,5 @@ class AnomalyAgent:
             
             # Convert to DataFrame
             wide_df = pd.DataFrame.from_dict(wide_data, orient='index')
-            wide_df.index.name = 'timestamp'
+            wide_df.index.name = self.timestamp_col
             return wide_df.reset_index()
