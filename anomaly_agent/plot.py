@@ -93,3 +93,70 @@ def plot_df(
     
     fig.show()
     return None
+
+
+def plot_df_matplotlib(
+    df: pd.DataFrame,
+    timestamp_col: str = "timestamp",
+    show_anomalies: bool = True,
+    anomaly_suffix: str = "_anomaly_flag",
+    title: str = "",
+) -> None:
+    """
+    Plot each time series column from the DataFrame on separate subplots using Matplotlib.
+    If show_anomalies is True, it will also plot corresponding anomaly flags as 'X' markers.
+
+    Parameters:
+        df (pd.DataFrame): DataFrame containing a timestamp column and one or more variable columns.
+        timestamp_col (str): Name of the timestamp column. Default is 'timestamp'.
+        show_anomalies (bool): Whether to plot anomaly flags. Default is True.
+            For each column 'col', looks for 'col{anomaly_suffix}' in the DataFrame.
+        anomaly_suffix (str): Suffix used for anomaly flag columns. Default is '_anomaly_flag'.
+        title (str): Title for the overall figure. Default is empty string.
+    """
+    import matplotlib.pyplot as plt
+
+    # Identify variable columns (all columns except the timestamp column and anomaly flags)
+    variable_columns = [
+        col
+        for col in df.columns
+        if col != timestamp_col and not col.endswith(anomaly_suffix)
+    ]
+    n_plots = len(variable_columns)
+
+    # Create figure and subplots
+    fig, axes = plt.subplots(n_plots, 1, figsize=(10, 4*n_plots))
+    fig.suptitle(title)
+    
+    # Handle case where there's only one subplot
+    if n_plots == 1:
+        axes = [axes]
+
+    # Add each time series as a separate subplot
+    for ax, col in zip(axes, variable_columns):
+        # Plot original time series
+        ax.plot(df[timestamp_col], df[col], 'o-', label=col, markersize=4)
+        
+        # Plot anomaly points if they exist and show_anomalies is True
+        anomaly_col = f"{col}{anomaly_suffix}"
+        if show_anomalies and anomaly_col in df.columns:
+            # Get timestamps and values where anomalies occur
+            anomaly_df = df[df[anomaly_col].notna()]
+            if not anomaly_df.empty:
+                ax.plot(
+                    anomaly_df[timestamp_col],
+                    anomaly_df[col],
+                    'rx',
+                    label=f"{col} Anomalies",
+                    markersize=10,
+                )
+
+        ax.set_title(col)
+        ax.grid(True)
+        
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
+    plt.show()
+    
+    
+
