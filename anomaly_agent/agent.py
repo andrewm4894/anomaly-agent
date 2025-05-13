@@ -5,6 +5,15 @@ from langchain_core.prompts import ChatPromptTemplate
 import pandas as pd
 
 
+DEFAULT_SYSTEM_PROMPT = """
+You are an expert anomaly detection agent. You are given a time series and you need to identify the anomalies.
+"""
+
+DEFAULT_VERIFY_SYSTEM_PROMPT = """
+You are an expert at verifying anomaly detections. Review the time series and the detected anomalies to confirm if they are genuine anomalies.
+"""
+
+
 class Anomaly(BaseModel):
     timestamp: str = Field(description="The timestamp of the anomaly")
     variable_value: float = Field(
@@ -18,24 +27,30 @@ class AnomalyList(BaseModel):
 
 
 class AnomalyAgent:
-    def __init__(self, model_name: str = "gpt-4o-mini", timestamp_col: str = "timestamp"):
-        """Initialize the AnomalyAgent with a specific model.
+    def __init__(
+        self,
+        model_name: str = "gpt-4o-mini",
+        timestamp_col: str = "timestamp",
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        verify_system_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
+        detection_prompt_template: str = "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n",
+        verification_prompt_template: str = "Variable name: {variable_name}\nTime series:\n{time_series}\n\nDetected anomalies:\n{detected_anomalies}\n\nPlease verify these anomalies and return only the confirmed ones."
+    ):
+        """Initialize the AnomalyAgent with a specific model and prompts.
 
         Args:
             model_name: The name of the OpenAI model to use
             timestamp_col: The name of the timestamp column
+            system_prompt: The system prompt for anomaly detection
+            verify_system_prompt: The system prompt for anomaly verification
+            detection_prompt_template: The template for the detection prompt
+            verification_prompt_template: The template for the verification prompt
         """
         self.llm = ChatOpenAI(model=model_name).with_structured_output(AnomalyList)
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are an expert anomaly detection agent. You are given a time series and you need to identify the anomalies.",
-                ),
-                (
-                    "human",
-                    "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n",
-                ),
+                ("system", system_prompt),
+                ("human", detection_prompt_template),
             ]
         )
         self.chain = self.prompt | self.llm
@@ -43,14 +58,8 @@ class AnomalyAgent:
 
         # Add verification chain
         self.verify_prompt = ChatPromptTemplate.from_messages([
-            (
-                "system",
-                "You are an expert at verifying anomaly detections. Review the time series and the detected anomalies to confirm if they are genuine anomalies."
-            ),
-            (
-                "human",
-                "Variable name: {variable_name}\nTime series:\n{time_series}\n\nDetected anomalies:\n{detected_anomalies}\n\nPlease verify these anomalies and return only the confirmed ones."
-            )
+            ("system", verify_system_prompt),
+            ("human", verification_prompt_template)
         ])
         self.verify_chain = self.verify_prompt | self.llm
 
