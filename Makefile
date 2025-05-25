@@ -1,7 +1,7 @@
 .PHONY: requirements-compile
 .PHONY: requirements-install
 .PHONY: requirements-dev
-.PHONY: build publish test
+.PHONY: build publish tests
 .PHONY: pre-commit pre-commit-install pre-commit-fix
 .PHONY: examples
 
@@ -21,7 +21,7 @@ build:
 publish:
 	@python -c "import glob; import os; files = glob.glob('dist/*.whl') + glob.glob('dist/*.tar.gz'); latest = max(files, key=os.path.getctime) if files else exit(1); print(f'Publishing: {latest}'); input('Continue? (y/n) ') == 'y' or exit(1); exit(os.system(f'twine upload {latest}'))"
 
-test:
+tests:
 	pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
 
 pre-commit-install:

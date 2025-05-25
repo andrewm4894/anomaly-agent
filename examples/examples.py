@@ -129,7 +129,7 @@ def example_real_world_scenario() -> Tuple[pd.DataFrame, pd.DataFrame]:
     print("\n=== Real-world Scenario Example ===")
 
     # Create time series with realistic patterns
-    dates = pd.date_range(start="2024-01-01", periods=100, freq="H")
+    dates = pd.date_range(start="2024-01-01", periods=100, freq="D")
 
     # Create base patterns
     x_temp = np.linspace(0, 4 * np.pi, 100)
@@ -144,7 +144,7 @@ def example_real_world_scenario() -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Create DataFrame
     df = pd.DataFrame(
         {
-            "timestamp": dates,
+            "timestamp": dates.strftime("%Y-%m-%d"),
             "temperature": temp,
             "power_consumption": power,
         }

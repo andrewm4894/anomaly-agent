@@ -115,14 +115,26 @@ def plot_df_matplotlib(
         anomaly_suffix: Suffix used for anomaly flag columns.
         title: Title for the overall figure.
     """
+    import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
 
+    # Ensure timestamp column is datetime
+    df = df.copy()
+    df[timestamp_col] = pd.to_datetime(df[timestamp_col])
+
     # Identify variable columns (all columns except timestamp and anomaly flags)
+    # Only include numeric columns
     variable_columns = [
         col
         for col in df.columns
-        if col != timestamp_col and not col.endswith(anomaly_suffix)
+        if col != timestamp_col
+        and not col.endswith(anomaly_suffix)
+        and pd.api.types.is_numeric_dtype(df[col])
     ]
+
+    if not variable_columns:
+        raise ValueError("No numeric columns found to plot")
+
     n_plots = len(variable_columns)
 
     # Create figure and subplots
@@ -157,6 +169,10 @@ def plot_df_matplotlib(
                     label=f"{col} Anomalies",
                     markersize=10,
                 )
+
+        # Format x-axis
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha="right")
 
         ax.set_title(col)
         ax.grid(True)

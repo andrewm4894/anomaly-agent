@@ -49,6 +49,50 @@ def multi_variable_df() -> pd.DataFrame:
     return df
 
 
+@pytest.fixture  # type: ignore
+def irregular_time_series_df() -> pd.DataFrame:
+    """Create a DataFrame with irregular timestamps and known anomalies."""
+    # Create irregular timestamps with varying gaps
+    timestamps = [
+        "2024-01-01 10:00:00",
+        "2024-01-01 10:15:00",  # 15 min gap
+        "2024-01-01 11:30:00",  # 1h 15min gap
+        "2024-01-01 12:00:00",  # 30 min gap
+        "2024-01-02 09:00:00",  # 21h gap
+        "2024-01-02 09:05:00",  # 5 min gap
+        "2024-01-02 09:10:00",  # 5 min gap
+        "2024-01-03 15:00:00",  # ~30h gap
+    ]
+
+    # Create some sample data with anomalies
+    values = np.random.normal(0, 1, len(timestamps))
+    values[2] = 5.0  # Spike
+    values[5] = -4.0  # Dip
+    values[7] = np.nan  # Missing value
+
+    return pd.DataFrame({"timestamp": pd.to_datetime(timestamps), "value": values})
+
+
+@pytest.fixture  # type: ignore
+def sub_second_time_series_df() -> pd.DataFrame:
+    """Create a DataFrame with sub-second timestamps and known anomalies."""
+    # Create timestamps with sub-second precision
+    timestamps = [
+        "2024-01-01 10:00:00.123",
+        "2024-01-01 10:00:00.456",
+        "2024-01-01 10:00:00.789",
+        "2024-01-01 10:00:01.123",
+        "2024-01-01 10:00:01.456",
+    ]
+
+    # Create some sample data with anomalies
+    values = np.random.normal(0, 1, len(timestamps))
+    values[1] = 5.0  # Spike
+    values[3] = -4.0  # Dip
+
+    return pd.DataFrame({"timestamp": pd.to_datetime(timestamps), "value": values})
+
+
 def test_agent_initialization() -> None:
     """Test basic initialization of AnomalyAgent."""
     agent = AnomalyAgent()
@@ -209,12 +253,23 @@ def test_anomaly_list_validation() -> None:
 
 def test_anomaly_timestamp_validation() -> None:
     """Test validation of anomaly timestamp format."""
-    with pytest.raises(ValueError):
-        Anomaly(
-            timestamp="not-a-date",
+    # Test valid timestamps
+    valid_timestamps = [
+        "2024-01-01 10:00:00",
+        "2024-01-01 10:00:00.123",
+        "2024-01-01 23:59:59",
+    ]
+
+    for ts in valid_timestamps:
+        anomaly = Anomaly(
+            timestamp=ts,
             variable_value=1.0,
             anomaly_description="test",
         )
+        # Convert both to datetime for comparison to handle format differences
+        input_dt = pd.to_datetime(ts)
+        output_dt = pd.to_datetime(anomaly.timestamp)
+        assert input_dt == output_dt
 
 
 def test_anomaly_value_validation() -> None:
@@ -233,3 +288,46 @@ def test_anomaly_description_validation() -> None:
         Anomaly(
             timestamp="2024-01-01", variable_value=1.0, anomaly_description=123
         )  # Should be string
+
+
+def test_irregular_time_series(irregular_time_series_df: pd.DataFrame) -> None:
+    """Test anomaly detection with irregular time series."""
+    agent = AnomalyAgent()
+    anomalies = agent.detect_anomalies(irregular_time_series_df)
+
+    assert isinstance(anomalies, dict)
+    assert "value" in anomalies
+    assert isinstance(anomalies["value"], AnomalyList)
+    assert len(anomalies["value"].anomalies) > 0
+
+    # Verify that timestamps are preserved correctly
+    df_anomalies = agent.get_anomalies_df(anomalies, format="long")
+    # Convert both to datetime for comparison to handle format differences
+    original_timestamps = pd.to_datetime(irregular_time_series_df["timestamp"])
+    anomaly_timestamps = pd.to_datetime(df_anomalies["timestamp"])
+
+    # Check that all anomaly timestamps exist in the original data
+    assert all(ts in original_timestamps.values for ts in anomaly_timestamps)
+
+
+def test_sub_second_timestamps(sub_second_time_series_df: pd.DataFrame) -> None:
+    """Test anomaly detection with sub-second timestamps."""
+    agent = AnomalyAgent()
+    anomalies = agent.detect_anomalies(sub_second_time_series_df)
+
+    assert isinstance(anomalies, dict)
+    assert "value" in anomalies
+    assert isinstance(anomalies["value"], AnomalyList)
+    assert len(anomalies["value"].anomalies) > 0
+
+    # Verify that sub-second precision is preserved
+    df_anomalies = agent.get_anomalies_df(anomalies, format="long")
+    original_timestamps = sub_second_time_series_df["timestamp"].dt.strftime(
+        "%Y-%m-%d %H:%M:%S.%f"
+    )
+    anomaly_timestamps = pd.to_datetime(df_anomalies["timestamp"]).dt.strftime(
+        "%Y-%m-%d %H:%M:%S.%f"
+    )
+
+    # Check that all anomaly timestamps exist in the original data
+    assert all(ts in original_timestamps.values for ts in anomaly_timestamps)

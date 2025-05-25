@@ -10,22 +10,13 @@ from typing import Dict, List, Literal, Optional, TypedDict
 
 import numpy as np
 import pandas as pd
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field, validator
 
-DEFAULT_SYSTEM_PROMPT = (
-    "You are an expert anomaly detection agent. "
-    "You are given a time series and you need to identify the anomalies."
-)
-
-DEFAULT_VERIFY_SYSTEM_PROMPT = (
-    "You are an expert at verifying anomaly detections. "
-    "Review the time series and the detected anomalies to confirm if they are "
-    "genuine anomalies."
-)
+from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
+from .prompt import get_detection_prompt, get_verification_prompt
 
 
 class Anomaly(BaseModel):
@@ -39,12 +30,35 @@ class Anomaly(BaseModel):
 
     @validator("timestamp")  # type: ignore
     def validate_timestamp(cls, v: str) -> str:
-        """Validate that the timestamp is in YYYY-MM-DD format."""
+        """Validate that the timestamp is in a valid format."""
         try:
-            datetime.strptime(v, "%Y-%m-%d")
+            # Try parsing with our custom format first
+            datetime.strptime(v, TIMESTAMP_FORMAT)
             return v
         except ValueError:
-            raise ValueError("timestamp must be in YYYY-MM-DD format")
+            try:
+                # Try parsing as ISO format
+                dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                # If input had microseconds, preserve them
+                if "." in v:
+                    return dt.strftime(TIMESTAMP_FORMAT)
+                # Otherwise use second precision
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                try:
+                    # Try parsing as date only (add time component)
+                    dt = datetime.strptime(v, "%Y-%m-%d")
+                    return dt.strftime("%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        # Try parsing without microseconds
+                        dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
+                        return v  # Return original format
+                    except ValueError:
+                        raise ValueError(
+                            f"timestamp must be in {TIMESTAMP_FORMAT} format, "
+                            "ISO format, or YYYY-MM-DD format"
+                        )
 
     @validator("variable_value")  # type: ignore
     def validate_variable_value(cls, v: float) -> float:
@@ -86,17 +100,7 @@ class AgentState(TypedDict, total=False):
 
 def create_detection_node(llm: ChatOpenAI) -> ToolNode:
     """Create the detection node for the graph."""
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", DEFAULT_SYSTEM_PROMPT),
-            (
-                "human",
-                "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n"
-                "IMPORTANT: Return timestamps in YYYY-MM-DD format only.",
-            ),
-        ]
-    )
-    chain = prompt | llm.with_structured_output(AnomalyList)
+    chain = get_detection_prompt() | llm.with_structured_output(AnomalyList)
 
     def detection_node(state: AgentState) -> AgentState:
         """Process the state and detect anomalies."""
@@ -113,18 +117,7 @@ def create_detection_node(llm: ChatOpenAI) -> ToolNode:
 
 def create_verification_node(llm: ChatOpenAI) -> ToolNode:
     """Create the verification node for the graph."""
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", DEFAULT_VERIFY_SYSTEM_PROMPT),
-            (
-                "human",
-                "Variable name: {variable_name}\nTime series:\n{time_series}\n\n"
-                "Detected anomalies:\n{detected_anomalies}\n\n"
-                "Please verify these anomalies and return only the confirmed ones.",  # noqa: E501
-            ),
-        ]
-    )
-    chain = prompt | llm.with_structured_output(AnomalyList)
+    chain = get_verification_prompt() | llm.with_structured_output(AnomalyList)
 
     def verification_node(state: AgentState) -> AgentState:
         """Process the state and verify anomalies."""
@@ -164,8 +157,8 @@ class AnomalyAgent:
 
     def __init__(
         self,
-        model_name: str = "gpt-4o-mini",
-        timestamp_col: str = "timestamp",
+        model_name: str = DEFAULT_MODEL_NAME,
+        timestamp_col: str = DEFAULT_TIMESTAMP_COL,
     ):
         """Initialize the AnomalyAgent with a specific model.
 
@@ -269,7 +262,7 @@ class AnomalyAgent:
                 for anomaly in anomaly_list.anomalies:
                     rows.append(
                         {
-                            "timestamp": anomaly.timestamp,
+                            "timestamp": pd.to_datetime(anomaly.timestamp),
                             "variable_name": col,
                             "value": anomaly.variable_value,
                             "anomaly_description": anomaly.anomaly_description,
@@ -283,7 +276,7 @@ class AnomalyAgent:
             for anomaly in anomaly_list.anomalies:
                 rows.append(
                     {
-                        "timestamp": anomaly.timestamp,
+                        "timestamp": pd.to_datetime(anomaly.timestamp),
                         col: anomaly.variable_value,
                         f"{col}_description": anomaly.anomaly_description,
                     }
