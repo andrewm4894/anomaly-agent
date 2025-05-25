@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 import pandas as pd
+from anomaly_agent.agent_graph import AnomalyAgentGraph
 
 
 DEFAULT_SYSTEM_PROMPT = """

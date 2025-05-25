@@ -4,3 +4,4 @@ pydantic
 langchain-openai
 langchain-core
 matplotlib
+langgraph
