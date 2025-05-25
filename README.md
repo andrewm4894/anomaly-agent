@@ -1,9 +1,21 @@
 # Anomaly Agent
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/andrewm4894/anomaly-agent)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![Tests](https://github.com/andrewm4894/anomaly-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/andrewm4894/anomaly-agent/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/andrewm4894/anomaly-agent/branch/main/graph/badge.svg)](https://codecov.io/gh/andrewm4894/anomaly-agent)
 
 <a target="_blank" href="https://pypi.org/project/anomaly-agent">
   <img alt="PyPI - Version" src="https://img.shields.io/pypi/v/anomaly-agent">
+</a>
+<a target="_blank" href="https://pypi.org/project/anomaly-agent">
+  <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/anomaly-agent">
+</a>
+<a target="_blank" href="https://pypi.org/project/anomaly-agent">
+  <img alt="PyPI - License" src="https://img.shields.io/pypi/l/anomaly-agent">
+</a>
+<a target="_blank" href="https://pypi.org/project/anomaly-agent">
+  <img alt="PyPI - Status" src="https://img.shields.io/pypi/status/anomaly-agent">
 </a>
 <a target="_blank" href="https://colab.research.google.com/github/andrewm4894/anomaly-agent/blob/main/notebooks/examples.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
