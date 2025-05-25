@@ -2,7 +2,8 @@
 .PHONY: requirements-install
 .PHONY: requirements-dev
 .PHONY: build publish test
-.PHONY: pre-commit pre-commit-install pre-commit-autofix
+.PHONY: pre-commit pre-commit-install pre-commit-fix
+.PHONY: examples
 
 
 requirements-compile:
@@ -30,8 +31,8 @@ pre-commit-install:
 pre-commit:
 	pre-commit run --all-files
 
-pre-commit-autofix:
-	pre-commit run black --all-files
-	pre-commit run isort --all-files
-	pre-commit run trailing-whitespace --all-files
-	pre-commit run end-of-file-fixer --all-files
+pre-commit-fix:
+	pre-commit run --all-files --fix
+
+examples:
+	@python examples/examples.py $(ARGS)

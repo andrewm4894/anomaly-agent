@@ -91,7 +91,8 @@ def create_detection_node(llm: ChatOpenAI) -> ToolNode:
             ("system", DEFAULT_SYSTEM_PROMPT),
             (
                 "human",
-                "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n",
+                "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n"
+                "IMPORTANT: Return timestamps in YYYY-MM-DD format only.",
             ),
         ]
     )
@@ -209,12 +210,29 @@ class AnomalyAgent:
         if timestamp_col is not None:
             self.timestamp_col = timestamp_col
 
+        # Check if timestamp column exists
+        if self.timestamp_col not in df.columns:
+            raise KeyError(
+                f"Timestamp column '{self.timestamp_col}' not found in DataFrame"
+            )
+
+        # Get numeric columns
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+
+        # If no numeric columns found, return empty results for all columns
+        if len(numeric_cols) == 0:
+            return {
+                col: AnomalyList(anomalies=[])
+                for col in df.columns
+                if col != self.timestamp_col
+            }
+
         # Convert DataFrame to string format
         df_str = df.to_string(index=False)
 
         # Process each numeric column
         results = {}
-        for col in df.select_dtypes(include=[np.number]).columns:
+        for col in numeric_cols:
             # Create state for this column
             state = {
                 "time_series": df_str,
@@ -224,7 +242,7 @@ class AnomalyAgent:
 
             # Run the graph
             result = self.app.invoke(state)
-            results[col] = result["verified_anomalies"]
+            results[col] = result["verified_anomalies"] or AnomalyList(anomalies=[])
 
         return results
 
