@@ -1,5 +1,14 @@
-import pandas as pd
+"""
+Utility functions for generating and manipulating time series data with anomalies.
+
+This module provides functions for generating synthetic time series data and injecting
+controlled anomalies for testing and demonstration purposes.
+"""
+
+from typing import Dict, List, Optional, Union, cast
+
 import numpy as np
+import pandas as pd
 
 
 def make_df(
@@ -7,31 +16,30 @@ def make_df(
     n_variables: int,
     start_date: str = "2020-01-01",
     freq: str = "D",
-    anomaly_config: dict = None,
+    anomaly_config: Optional[Dict[str, Union[bool, float, List[str]]]] = None,
     col_prefix: str = "var",
     timestamp_col: str = "timestamp",
 ) -> pd.DataFrame:
-    """
-    Generate a DataFrame with a timestamp column and n random variable columns,
-    and optionally inject anomalies into the random data.
+    """Generate a DataFrame with random variables and optional anomalies.
 
-    Parameters:
-        num_rows (int): Number of rows (timestamps) in the DataFrame.
-        n_variables (int): Number of random variable columns to generate.
-        start_date (str): The start date for the timestamp series (default '2020-01-01').
-        freq (str): Frequency string for the timestamps (default 'D' for daily).
-        anomaly_config (dict, optional): Configuration dictionary for injecting anomalies.
+    Args:
+        num_rows: Number of rows (timestamps) in the DataFrame.
+        n_variables: Number of random variable columns to generate.
+        start_date: The start date for the timestamp series.
+        freq: Frequency string for the timestamps.
+        anomaly_config: Configuration dictionary for injecting anomalies.
             Keys:
-                - enabled (bool): Whether to inject anomalies (default True if provided).
-                - fraction (float): Fraction of data points per variable column to modify (default 0.05).
-                - methods (list of str): List of anomaly methods to apply. Options: 'spike', 'drop', 'shift', 'noise'.
-                - spike_factor (float): Factor to multiply value in 'spike' method (default 10).
-                - shift_value (float): Value to add in 'shift' method (default 5).
-                - noise_std (float): Standard deviation for noise in 'noise' method (default 0.5).
+                - enabled (bool): Whether to inject anomalies.
+                - fraction (float): Fraction of data points to modify.
+                - methods (list): List of anomaly methods to apply.
+                - spike_factor (float): Factor to multiply value in 'spike' method.
+                - shift_value (float): Value to add in 'shift' method.
+                - noise_std (float): Standard deviation for noise in 'noise' method.
+        col_prefix: Prefix for variable column names.
+        timestamp_col: Name of the timestamp column.
 
     Returns:
-        pd.DataFrame: A DataFrame with a 'timestamp' column and n random variable columns,
-                      with anomalies injected if configured.
+        DataFrame with timestamp column and random variable columns.
     """
     # Create a timestamp series
     timestamps = pd.date_range(start=start_date, periods=num_rows, freq=freq)
@@ -48,15 +56,24 @@ def make_df(
     # Inject anomalies if an anomaly configuration is provided and enabled
     if anomaly_config is not None and anomaly_config.get("enabled", True):
         # Get anomaly configuration parameters or use defaults
-        fraction = anomaly_config.get("fraction", 0.05)
-        methods = anomaly_config.get("methods", ["spike", "drop", "shift", "noise"])
+        fraction = cast(float, anomaly_config.get("fraction", 0.05))
+        methods = cast(
+            List[str],
+            anomaly_config.get(
+                "methods", ["spike", "drop", "shift", "noise"]
+            ),  # noqa: E501
+        )
 
         # For each variable column, select random indices to modify
         for i in range(1, n_variables + 1):
             col = f"{col_prefix}{i}"
             n_anomalies = int(num_rows * fraction)
             if n_anomalies > 0:
-                anomaly_indices = np.random.choice(num_rows, n_anomalies, replace=False)
+                anomaly_indices = np.random.choice(
+                    num_rows,
+                    n_anomalies,
+                    replace=False,
+                )
                 for idx in anomaly_indices:
                     # Randomly choose an anomaly method for this data point
                     method = np.random.choice(methods)
@@ -64,50 +81,62 @@ def make_df(
 
                     if method == "spike":
                         # Multiply the original value by spike_factor
-                        spike_factor = anomaly_config.get("spike_factor", 10)
+                        spike_factor = cast(
+                            float,
+                            anomaly_config.get("spike_factor", 10),  # noqa: E501
+                        )
                         df.loc[idx, col] = original_value * spike_factor
                     elif method == "drop":
                         # Replace the value with NaN to simulate a missing value
                         df.loc[idx, col] = np.nan
                     elif method == "shift":
                         # Add a constant shift to the original value
-                        shift_value = anomaly_config.get("shift_value", 5)
+                        shift_value = cast(
+                            float,
+                            anomaly_config.get("shift_value", 5),  # noqa: E501
+                        )
                         df.loc[idx, col] = original_value + shift_value
                     elif method == "noise":
                         # Add normally distributed noise to the original value
-                        noise_std = anomaly_config.get("noise_std", 0.5)
+                        noise_std = cast(
+                            float,
+                            anomaly_config.get("noise_std", 0.5),  # noqa: E501
+                        )
                         df.loc[idx, col] = original_value + np.random.normal(
-                            0, noise_std
+                            0, noise_std  # noqa: E501
                         )
                     else:
-                        # If the method is not recognized, leave the value unchanged.
+                        # If the method is not recognized, leave the value unchanged
                         pass
     return df
 
 
 def make_anomaly_config(
     enabled: bool = True,
-    fraction: float = 0.05,
-    methods: list[str] = ["spike", "drop", "shift", "noise"],
+    fraction: float = 0.02,
+    methods: Optional[List[str]] = None,
     spike_factor: float = 10,
     shift_value: float = 3,
     noise_std: float = 0.2,
-) -> dict:
-    """
-    Create a configuration dictionary for injecting anomalies into a DataFrame.
+) -> Dict[str, Union[bool, float, List[str]]]:
+    """Create a configuration dictionary for injecting anomalies.
 
-    Parameters:
-        enabled (bool): Whether to enable anomaly injection (default True).
-        fraction (float): Fraction of data points per variable column to modify (default 0.1).
-        methods (list of str): List of anomaly methods to apply. Options: 'spike', 'drop', 'shift', 'noise'.
-        spike_factor (float): Factor to multiply value in 'spike' method (default 10).
-        shift_value (float): Value to add in 'shift' method (default 3).
-        noise_std (float): Standard deviation for noise in 'noise' method (default 0.2).
+    Args:
+        enabled: Whether to enable anomaly injection.
+        fraction: Fraction of data points per variable column to modify.
+        methods: List of anomaly methods to apply.
+            Options: 'spike', 'drop', 'shift', 'noise'.
+        spike_factor: Factor to multiply value in 'spike' method.
+        shift_value: Value to add in 'shift' method.
+        noise_std: Standard deviation for noise in 'noise' method.
 
     Returns:
-        dict: A configuration dictionary for injecting anomalies into a DataFrame.
+        Configuration dictionary for injecting anomalies.
     """
-    anomaly_cfg = {
+    if methods is None:
+        methods = ["spike", "drop", "shift", "noise"]
+
+    return {
         "enabled": enabled,
         "fraction": fraction,
         "methods": methods,
@@ -115,5 +144,3 @@ def make_anomaly_config(
         "shift_value": shift_value,
         "noise_std": noise_std,
     }
-
-    return anomaly_cfg

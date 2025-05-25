@@ -1,157 +1,273 @@
-from typing import Optional, Dict
-from pydantic import BaseModel, Field, model_validator
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
+"""
+Anomaly detection agent using LLMs to identify and verify anomalies in time series data.
+
+This module provides functionality for detecting and verifying anomalies in time series
+data using language models.
+"""
+
+from datetime import datetime
+from typing import Dict, List, Literal, Optional, TypedDict
+
+import numpy as np
 import pandas as pd
-from anomaly_agent.agent_graph import AnomalyAgentGraph
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
+from pydantic import BaseModel, Field, validator
 
+DEFAULT_SYSTEM_PROMPT = (
+    "You are an expert anomaly detection agent. "
+    "You are given a time series and you need to identify the anomalies."
+)
 
-DEFAULT_SYSTEM_PROMPT = """
-You are an expert anomaly detection agent. You are given a time series and you need to identify the anomalies.
-"""
-
-DEFAULT_VERIFY_SYSTEM_PROMPT = """
-You are an expert at verifying anomaly detections. Review the time series and the detected anomalies to confirm if they are genuine anomalies.
-"""
+DEFAULT_VERIFY_SYSTEM_PROMPT = (
+    "You are an expert at verifying anomaly detections. "
+    "Review the time series and the detected anomalies to confirm if they are "
+    "genuine anomalies."
+)
 
 
 class Anomaly(BaseModel):
+    """Represents a single anomaly in a time series."""
+
     timestamp: str = Field(description="The timestamp of the anomaly")
     variable_value: float = Field(
         description="The value of the variable at the anomaly timestamp"
     )
     anomaly_description: str = Field(description="A description of the anomaly")
 
+    @validator("timestamp")  # type: ignore
+    def validate_timestamp(cls, v: str) -> str:
+        """Validate that the timestamp is in YYYY-MM-DD format."""
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+            return v
+        except ValueError:
+            raise ValueError("timestamp must be in YYYY-MM-DD format")
+
+    @validator("variable_value")  # type: ignore
+    def validate_variable_value(cls, v: float) -> float:
+        """Validate that the variable value is a number."""
+        if not isinstance(v, (int, float)):
+            raise ValueError("variable_value must be a number")
+        return float(v)
+
+    @validator("anomaly_description")  # type: ignore
+    def validate_anomaly_description(cls, v: str) -> str:
+        """Validate that the anomaly description is a string."""
+        if not isinstance(v, str):
+            raise ValueError("anomaly_description must be a string")
+        return v
+
 
 class AnomalyList(BaseModel):
-    anomalies: list[Anomaly] = Field(description="The list of anomalies")
+    """Represents a list of anomalies."""
+
+    anomalies: List[Anomaly] = Field(description="The list of anomalies")
+
+    @validator("anomalies")  # type: ignore
+    def validate_anomalies(cls, v: List[Anomaly]) -> List[Anomaly]:
+        """Validate that anomalies is a list."""
+        if not isinstance(v, list):
+            raise ValueError("anomalies must be a list")
+        return v
+
+
+class AgentState(TypedDict, total=False):
+    """State for the anomaly detection agent."""
+
+    time_series: str
+    variable_name: str
+    detected_anomalies: Optional[AnomalyList]
+    verified_anomalies: Optional[AnomalyList]
+    current_step: str
+
+
+def create_detection_node(llm: ChatOpenAI) -> ToolNode:
+    """Create the detection node for the graph."""
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", DEFAULT_SYSTEM_PROMPT),
+            (
+                "human",
+                "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n",
+            ),
+        ]
+    )
+    chain = prompt | llm.with_structured_output(AnomalyList)
+
+    def detection_node(state: AgentState) -> AgentState:
+        """Process the state and detect anomalies."""
+        result = chain.invoke(
+            {
+                "time_series": state["time_series"],
+                "variable_name": state["variable_name"],
+            }
+        )
+        return {"detected_anomalies": result, "current_step": "verify"}
+
+    return detection_node
+
+
+def create_verification_node(llm: ChatOpenAI) -> ToolNode:
+    """Create the verification node for the graph."""
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", DEFAULT_VERIFY_SYSTEM_PROMPT),
+            (
+                "human",
+                "Variable name: {variable_name}\nTime series:\n{time_series}\n\n"
+                "Detected anomalies:\n{detected_anomalies}\n\n"
+                "Please verify these anomalies and return only the confirmed ones.",  # noqa: E501
+            ),
+        ]
+    )
+    chain = prompt | llm.with_structured_output(AnomalyList)
+
+    def verification_node(state: AgentState) -> AgentState:
+        """Process the state and verify anomalies."""
+        if state["detected_anomalies"] is None:
+            return {"verified_anomalies": None, "current_step": "end"}
+
+        detected_str = "\n".join(
+            [
+                (
+                    f"timestamp: {a.timestamp}, "
+                    f"value: {a.variable_value}, "  # noqa: E501
+                    f"Description: {a.anomaly_description}"  # noqa: E501
+                )
+                for a in state["detected_anomalies"].anomalies
+            ]
+        )
+
+        result = chain.invoke(
+            {
+                "time_series": state["time_series"],
+                "variable_name": state["variable_name"],
+                "detected_anomalies": detected_str,  # noqa: E501
+            }
+        )
+        return {"verified_anomalies": result, "current_step": "end"}
+
+    return verification_node
+
+
+def should_verify(state: AgentState) -> Literal["verify", "end"]:
+    """Determine if we should proceed to verification."""
+    return "verify" if state["current_step"] == "verify" else "end"
 
 
 class AnomalyAgent:
+    """Agent for detecting and verifying anomalies in time series data."""
+
     def __init__(
         self,
         model_name: str = "gpt-4o-mini",
         timestamp_col: str = "timestamp",
-        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
-        verify_system_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
-        detection_prompt_template: str = "Variable name: {variable_name}\nTime series: \n\n {time_series} \n\n",
-        verification_prompt_template: str = "Variable name: {variable_name}\nTime series:\n{time_series}\n\nDetected anomalies:\n{detected_anomalies}\n\nPlease verify these anomalies and return only the confirmed ones."
     ):
-        """Initialize the AnomalyAgent with a specific model and prompts.
+        """Initialize the AnomalyAgent with a specific model.
 
         Args:
             model_name: The name of the OpenAI model to use
             timestamp_col: The name of the timestamp column
-            system_prompt: The system prompt for anomaly detection
-            verify_system_prompt: The system prompt for anomaly verification
-            detection_prompt_template: The template for the detection prompt
-            verification_prompt_template: The template for the verification prompt
         """
-        self.llm = ChatOpenAI(model=model_name).with_structured_output(AnomalyList)
-        self.prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("human", detection_prompt_template),
-            ]
-        )
-        self.chain = self.prompt | self.llm
+        self.llm = ChatOpenAI(model=model_name)
         self.timestamp_col = timestamp_col
 
-        # Add verification chain
-        self.verify_prompt = ChatPromptTemplate.from_messages([
-            ("system", verify_system_prompt),
-            ("human", verification_prompt_template)
-        ])
-        self.verify_chain = self.verify_prompt | self.llm
+        # Create the graph
+        self.graph = StateGraph(AgentState)
+
+        # Add nodes
+        self.graph.add_node("detect", create_detection_node(self.llm))
+        self.graph.add_node("verify", create_verification_node(self.llm))
+
+        # Add edges with proper routing
+        self.graph.add_conditional_edges(
+            "detect", should_verify, {"verify": "verify", "end": END}
+        )
+        self.graph.add_edge("verify", END)
+
+        # Set entry point
+        self.graph.set_entry_point("detect")
+
+        # Compile the graph
+        self.app = self.graph.compile()
 
     def detect_anomalies(
-        self, df: pd.DataFrame, timestamp_col: str = "timestamp", verify: bool = True
+        self, df: pd.DataFrame, timestamp_col: Optional[str] = None
     ) -> Dict[str, AnomalyList]:
-        """Detect anomalies in the given time series data for all numeric columns except timestamp.
+        """Detect anomalies in the given time series data.
 
         Args:
             df: DataFrame containing the time series data
-            timestamp_col: Name of the timestamp column
-            verify: Whether to verify the detected anomalies using a second pass
+            timestamp_col: Name of the timestamp column (optional)
 
         Returns:
             Dictionary mapping column names to their respective AnomalyList
         """
-        # Set the timestamp column
-        self.timestamp_col = timestamp_col
-        
-        # Get all columns except timestamp
-        value_cols = [col for col in df.columns if col != timestamp_col]
-        anomalies: Dict[str, AnomalyList] = {}
+        if timestamp_col is not None:
+            self.timestamp_col = timestamp_col
 
-        # Process each column
-        for value_col in value_cols:
-            time_series = df[[timestamp_col, value_col]].to_string()
-            result = self.chain.invoke(
-                {"time_series": time_series, "variable_name": value_col}
-            )
-            
-            if verify:
-                # Convert detected anomalies to string format for verification
-                detected_str = "\n".join([
-                    f"{self.timestamp_col}: {a.timestamp}, {value_col}: {a.variable_value}, Description: {a.anomaly_description}"
-                    for a in result.anomalies
-                ])
-                
-                # Verify the anomalies
-                verified_result = self.verify_chain.invoke({
-                    "time_series": time_series,
-                    "variable_name": value_col,
-                    "detected_anomalies": detected_str
-                })
-                result = verified_result
+        # Convert DataFrame to string format
+        df_str = df.to_string(index=False)
 
-            anomalies[value_col] = result
+        # Process each numeric column
+        results = {}
+        for col in df.select_dtypes(include=[np.number]).columns:
+            # Create state for this column
+            state = {
+                "time_series": df_str,
+                "variable_name": col,
+                "current_step": "detect",
+            }
 
-        return anomalies
+            # Run the graph
+            result = self.app.invoke(state)
+            results[col] = result["verified_anomalies"]
+
+        return results
 
     def get_anomalies_df(
         self, anomalies: Dict[str, AnomalyList], format: str = "long"
     ) -> pd.DataFrame:
-        """Create a DataFrame from the detected anomalies.
+        """Convert anomalies to a DataFrame.
 
         Args:
-            anomalies: Dictionary of anomalies returned by detect_anomalies
-            format: Either 'long' or 'wide'. Long format has one row per anomaly with variable_name column.
-                   Wide format has one row per timestamp with a column for each variable.
+            anomalies: Dictionary mapping column names to their respective
+                AnomalyList
+            format: Output format, either "long" or "wide"
 
         Returns:
-            DataFrame containing the anomalous data points. For long format, includes columns for timestamp,
-            variable name, value, and description. For wide format, includes timestamp and one column per variable.
-            The timestamp column is converted to datetime type.
+            DataFrame containing the anomalies
         """
-        if format.lower() not in ["long", "wide"]:
+        if format not in ["long", "wide"]:
             raise ValueError("format must be either 'long' or 'wide'")
 
-        if format.lower() == "long":
+        if format == "long":
+            # Create long format DataFrame
             rows = []
-            for variable_name, anomaly_list in anomalies.items():
+            for col, anomaly_list in anomalies.items():
                 for anomaly in anomaly_list.anomalies:
                     rows.append(
                         {
-                            self.timestamp_col : pd.to_datetime(anomaly.timestamp),
-                            "variable_name": variable_name,
+                            "timestamp": anomaly.timestamp,
+                            "variable_name": col,
                             "value": anomaly.variable_value,
                             "anomaly_description": anomaly.anomaly_description,
                         }
                     )
             return pd.DataFrame(rows)
-        else:
-            # Create a dictionary to store values for each variable at each timestamp
-            wide_data = {}
-            for variable_name, anomaly_list in anomalies.items():
-                for anomaly in anomaly_list.anomalies:
-                    timestamp = pd.to_datetime(anomaly.timestamp)
-                    if timestamp not in wide_data:
-                        wide_data[timestamp] = {}
-                    wide_data[timestamp][variable_name] = anomaly.variable_value
-            
-            # Convert to DataFrame
-            wide_df = pd.DataFrame.from_dict(wide_data, orient='index')
-            wide_df.index.name = self.timestamp_col
-            return wide_df.reset_index()
+
+        # Create wide format DataFrame
+        rows = []
+        for col, anomaly_list in anomalies.items():
+            for anomaly in anomaly_list.anomalies:
+                rows.append(
+                    {
+                        "timestamp": anomaly.timestamp,
+                        col: anomaly.variable_value,
+                        f"{col}_description": anomaly.anomaly_description,
+                    }
+                )
+        return pd.DataFrame(rows)

@@ -1,3 +1,7 @@
+"""Plotting utilities for visualizing time series data and anomalies."""
+
+from typing import Optional
+
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -10,35 +14,26 @@ def plot_df(
     anomaly_suffix: str = "_anomaly_flag",
     title: str = "",
     return_fig: bool = False,
-) -> go.Figure | None:
-    """
+) -> Optional[go.Figure]:
+    """Plot time series data with optional anomaly markers using Plotly.
 
-    Plot each time series column from the DataFrame on separate subplots using Plotly.
-    If show_anomalies is True, it will also plot corresponding anomaly flags as 'X' markers.
-
-    Parameters:
-        df (pd.DataFrame): DataFrame containing a timestamp column and one or more variable columns.
-        timestamp_col (str): Name of the timestamp column. Default is 'timestamp'.
-        show_anomalies (bool): Whether to plot anomaly flags. Default is True.
-            For each column 'col', looks for 'col{anomaly_suffix}' in the DataFrame.
-        anomaly_suffix (str): Suffix used for anomaly flag columns. Default is '_anomaly_flag'.
-            For a column 'temperature', it will look for 'temperature_anomaly_flag'.
-        return_fig (bool): If True, returns the figure object instead of displaying it.
-            Default is False.
-
-    The function creates a subplot for each variable column (all columns except the timestamp),
-    with the x-axis representing the timestamps.
+    Args:
+        df: DataFrame containing timestamp and variable columns.
+        timestamp_col: Name of the timestamp column.
+        show_anomalies: Whether to plot anomaly flags.
+        anomaly_suffix: Suffix used for anomaly flag columns.
+        title: Title for the overall figure.
+        return_fig: If True, returns the figure object instead of displaying it.
 
     Returns:
-        go.Figure | None: If return_fig is True, returns the Plotly figure object.
-            Otherwise returns None.
+        Plotly figure object if return_fig is True, otherwise None.
     """
-    # Identify variable columns (all columns except the timestamp column and anomaly flags)
+    # Identify variable columns (all columns except timestamp and anomaly flags)
     variable_columns = [
         col
         for col in df.columns
         if col != timestamp_col and not col.endswith(anomaly_suffix)
-    ]
+    ]  # noqa: E501
     n_plots = len(variable_columns)
 
     # Create subplots with a shared x-axis for better alignment
@@ -48,7 +43,7 @@ def plot_df(
         shared_xaxes=True,
         subplot_titles=variable_columns,
         vertical_spacing=0.05,
-    )
+    )  # noqa: E501
 
     # Add each time series as a separate trace in its corresponding subplot
     for i, col in enumerate(variable_columns):
@@ -63,7 +58,7 @@ def plot_df(
             ),
             row=i + 1,
             col=1,
-        )
+        )  # noqa: E501
 
         # Plot anomaly points if they exist and show_anomalies is True
         anomaly_col = f"{col}{anomaly_suffix}"
@@ -71,26 +66,35 @@ def plot_df(
             # Get timestamps and values where anomalies occur
             anomaly_df = df[df[anomaly_col].notna()]
             if not anomaly_df.empty:
+                marker_config = {
+                    "symbol": "x",
+                    "size": 10,
+                    "color": "red",
+                }
                 fig.add_trace(
                     go.Scatter(
                         x=anomaly_df[timestamp_col],
                         y=anomaly_df[col],
                         mode="markers",
                         name=f"{col} Anomalies",
-                        marker=dict(symbol="x", size=10, color="red"),
+                        marker=marker_config,
                         showlegend=False,
                     ),
                     row=i + 1,
                     col=1,
-                )
+                )  # noqa: E501
 
-    # Update layout settings: adjust the overall height based on the number of plots
-    fig.update_layout(height=300 * n_plots, width=800, title_text=title)
+    # Update layout settings
+    fig.update_layout(
+        height=300 * n_plots,
+        width=800,
+        title_text=title,
+    )  # noqa: E501
 
     # Either return the figure or display it
     if return_fig:
         return fig
-    
+
     fig.show()
     return None
 
@@ -102,21 +106,18 @@ def plot_df_matplotlib(
     anomaly_suffix: str = "_anomaly_flag",
     title: str = "",
 ) -> None:
-    """
-    Plot each time series column from the DataFrame on separate subplots using Matplotlib.
-    If show_anomalies is True, it will also plot corresponding anomaly flags as 'X' markers.
+    """Plot time series data with optional anomaly markers using Matplotlib.
 
-    Parameters:
-        df (pd.DataFrame): DataFrame containing a timestamp column and one or more variable columns.
-        timestamp_col (str): Name of the timestamp column. Default is 'timestamp'.
-        show_anomalies (bool): Whether to plot anomaly flags. Default is True.
-            For each column 'col', looks for 'col{anomaly_suffix}' in the DataFrame.
-        anomaly_suffix (str): Suffix used for anomaly flag columns. Default is '_anomaly_flag'.
-        title (str): Title for the overall figure. Default is empty string.
+    Args:
+        df: DataFrame containing timestamp and variable columns.
+        timestamp_col: Name of the timestamp column.
+        show_anomalies: Whether to plot anomaly flags.
+        anomaly_suffix: Suffix used for anomaly flag columns.
+        title: Title for the overall figure.
     """
     import matplotlib.pyplot as plt
 
-    # Identify variable columns (all columns except the timestamp column and anomaly flags)
+    # Identify variable columns (all columns except timestamp and anomaly flags)
     variable_columns = [
         col
         for col in df.columns
@@ -125,9 +126,9 @@ def plot_df_matplotlib(
     n_plots = len(variable_columns)
 
     # Create figure and subplots
-    fig, axes = plt.subplots(n_plots, 1, figsize=(10, 4*n_plots))
+    fig, axes = plt.subplots(n_plots, 1, figsize=(10, 4 * n_plots))
     fig.suptitle(title)
-    
+
     # Handle case where there's only one subplot
     if n_plots == 1:
         axes = [axes]
@@ -135,8 +136,14 @@ def plot_df_matplotlib(
     # Add each time series as a separate subplot
     for ax, col in zip(axes, variable_columns):
         # Plot original time series
-        ax.plot(df[timestamp_col], df[col], 'o-', label=col, markersize=4)
-        
+        ax.plot(
+            df[timestamp_col],
+            df[col],
+            "o-",
+            label=col,
+            markersize=4,
+        )
+
         # Plot anomaly points if they exist and show_anomalies is True
         anomaly_col = f"{col}{anomaly_suffix}"
         if show_anomalies and anomaly_col in df.columns:
@@ -146,17 +153,14 @@ def plot_df_matplotlib(
                 ax.plot(
                     anomaly_df[timestamp_col],
                     anomaly_df[col],
-                    'rx',
+                    "rx",
                     label=f"{col} Anomalies",
                     markersize=10,
                 )
 
         ax.set_title(col)
         ax.grid(True)
-        
+
     # Adjust layout to prevent overlap
     plt.tight_layout()
     plt.show()
-    
-    
-

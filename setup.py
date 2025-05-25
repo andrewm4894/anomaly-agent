@@ -1,10 +1,18 @@
-from setuptools import setup, find_packages
+"""Setup configuration for the anomaly-agent package.
+
+This module handles the package installation configuration, including dependencies,
+metadata, and Python version requirements.  # noqa: E501
+"""
+
+from typing import List
+
+from setuptools import find_packages, setup
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 
-def read_requirements(filename):
+def read_requirements(filename: str) -> List[str]:
     """Read requirements from file, handling comments and empty lines."""
     with open(filename) as f:
         return [
@@ -22,10 +30,10 @@ except FileNotFoundError:
 
 setup(
     name="anomaly-agent",
-    version="0.6.0",
+    version="0.7.0",
     author="Andrew Maguire",
     author_email="andrewm4894@gmail.com",
-    description="A package for detecting anomalies in time series data using LLMs",
+    description=("A package for detecting anomalies in time series data " "using LLMs"),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/andrewm4894/anomaly-agent",
