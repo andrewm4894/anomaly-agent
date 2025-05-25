@@ -159,28 +159,35 @@ class AnomalyAgent:
         self,
         model_name: str = DEFAULT_MODEL_NAME,
         timestamp_col: str = DEFAULT_TIMESTAMP_COL,
+        verify_anomalies: bool = True,
     ):
         """Initialize the AnomalyAgent with a specific model.
 
         Args:
             model_name: The name of the OpenAI model to use
             timestamp_col: The name of the timestamp column
+            verify_anomalies: Whether to verify detected anomalies (default: True)
         """
         self.llm = ChatOpenAI(model=model_name)
         self.timestamp_col = timestamp_col
+        self.verify_anomalies = verify_anomalies
 
         # Create the graph
         self.graph = StateGraph(AgentState)
 
         # Add nodes
         self.graph.add_node("detect", create_detection_node(self.llm))
-        self.graph.add_node("verify", create_verification_node(self.llm))
+        if self.verify_anomalies:
+            self.graph.add_node("verify", create_verification_node(self.llm))
 
         # Add edges with proper routing
-        self.graph.add_conditional_edges(
-            "detect", should_verify, {"verify": "verify", "end": END}
-        )
-        self.graph.add_edge("verify", END)
+        if self.verify_anomalies:
+            self.graph.add_conditional_edges(
+                "detect", should_verify, {"verify": "verify", "end": END}
+            )
+            self.graph.add_edge("verify", END)
+        else:
+            self.graph.add_edge("detect", END)
 
         # Set entry point
         self.graph.set_entry_point("detect")
@@ -189,19 +196,52 @@ class AnomalyAgent:
         self.app = self.graph.compile()
 
     def detect_anomalies(
-        self, df: pd.DataFrame, timestamp_col: Optional[str] = None
+        self,
+        df: pd.DataFrame,
+        timestamp_col: Optional[str] = None,
+        verify_anomalies: Optional[bool] = None,
     ) -> Dict[str, AnomalyList]:
         """Detect anomalies in the given time series data.
 
         Args:
             df: DataFrame containing the time series data
             timestamp_col: Name of the timestamp column (optional)
+            verify_anomalies: Whether to verify detected anomalies. If None, uses the
+                instance default (default: None)
 
         Returns:
             Dictionary mapping column names to their respective AnomalyList
         """
         if timestamp_col is not None:
             self.timestamp_col = timestamp_col
+
+        # Use instance default if verify_anomalies not specified
+        verify_anomalies = (
+            self.verify_anomalies if verify_anomalies is None else verify_anomalies
+        )
+
+        # Create a new graph for this detection run
+        graph = StateGraph(AgentState)
+
+        # Add nodes
+        graph.add_node("detect", create_detection_node(self.llm))
+        if verify_anomalies:
+            graph.add_node("verify", create_verification_node(self.llm))
+
+        # Add edges with proper routing
+        if verify_anomalies:
+            graph.add_conditional_edges(
+                "detect", should_verify, {"verify": "verify", "end": END}
+            )
+            graph.add_edge("verify", END)
+        else:
+            graph.add_edge("detect", END)
+
+        # Set entry point
+        graph.set_entry_point("detect")
+
+        # Compile the graph
+        app = graph.compile()
 
         # Check if timestamp column exists
         if self.timestamp_col not in df.columns:
@@ -234,8 +274,11 @@ class AnomalyAgent:
             }
 
             # Run the graph
-            result = self.app.invoke(state)
-            results[col] = result["verified_anomalies"] or AnomalyList(anomalies=[])
+            result = app.invoke(state)
+            if verify_anomalies:
+                results[col] = result["verified_anomalies"] or AnomalyList(anomalies=[])
+            else:
+                results[col] = result["detected_anomalies"] or AnomalyList(anomalies=[])
 
         return results
 

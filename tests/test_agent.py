@@ -331,3 +331,39 @@ def test_sub_second_timestamps(sub_second_time_series_df: pd.DataFrame) -> None:
 
     # Check that all anomaly timestamps exist in the original data
     assert all(ts in original_timestamps.values for ts in anomaly_timestamps)
+
+
+def test_agent_without_verification(single_variable_df: pd.DataFrame) -> None:
+    """Test anomaly detection when verification is disabled."""
+    # Test instance-level verification control
+    agent = AnomalyAgent(verify_anomalies=False)
+    assert agent.verify_anomalies is False
+
+    # Detect anomalies with instance default
+    anomalies = agent.detect_anomalies(single_variable_df)
+    assert isinstance(anomalies, dict)
+    assert "temperature" in anomalies
+    assert isinstance(anomalies["temperature"], AnomalyList)
+    assert len(anomalies["temperature"].anomalies) > 0
+
+    # Test method-level verification control
+    # Create agent with default verification enabled
+    agent = AnomalyAgent(verify_anomalies=True)
+    assert agent.verify_anomalies is True
+
+    # Override verification at method level
+    anomalies = agent.detect_anomalies(single_variable_df, verify_anomalies=False)
+    assert isinstance(anomalies, dict)
+    assert "temperature" in anomalies
+    assert isinstance(anomalies["temperature"], AnomalyList)
+    assert len(anomalies["temperature"].anomalies) > 0
+
+    # Convert to DataFrame to check the results
+    df_anomalies = agent.get_anomalies_df(anomalies, format="long")
+    assert isinstance(df_anomalies, pd.DataFrame)
+    assert len(df_anomalies) > 0
+
+    # Verify that the timestamps of detected anomalies exist in the original data
+    original_timestamps = pd.to_datetime(single_variable_df["timestamp"])
+    anomaly_timestamps = pd.to_datetime(df_anomalies["timestamp"])
+    assert all(ts in original_timestamps.values for ts in anomaly_timestamps)
