@@ -25,6 +25,7 @@ tests:
 	pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
 
 test: tests
+
 pre-commit-install:
 	pip install pre-commit
 	pre-commit install
