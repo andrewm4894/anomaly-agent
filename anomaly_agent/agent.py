@@ -6,14 +6,14 @@ data using language models.
 """
 
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, TypedDict
+from typing import Dict, List, Literal, Optional, Any, Annotated
+from operator import add
 
 import numpy as np
 import pandas as pd
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
 from .prompt import get_detection_prompt, get_verification_prompt, DEFAULT_SYSTEM_PROMPT, DEFAULT_VERIFY_SYSTEM_PROMPT
@@ -28,7 +28,8 @@ class Anomaly(BaseModel):
     )
     anomaly_description: str = Field(description="A description of the anomaly")
 
-    @validator("timestamp")  # type: ignore
+    @field_validator("timestamp")
+    @classmethod
     def validate_timestamp(cls, v: str) -> str:
         """Validate that the timestamp is in a valid format."""
         try:
@@ -60,14 +61,16 @@ class Anomaly(BaseModel):
                             "ISO format, or YYYY-MM-DD format"
                         )
 
-    @validator("variable_value")  # type: ignore
+    @field_validator("variable_value")
+    @classmethod
     def validate_variable_value(cls, v: float) -> float:
         """Validate that the variable value is a number."""
         if not isinstance(v, (int, float)):
             raise ValueError("variable_value must be a number")
         return float(v)
 
-    @validator("anomaly_description")  # type: ignore
+    @field_validator("anomaly_description")
+    @classmethod
     def validate_anomaly_description(cls, v: str) -> str:
         """Validate that the anomaly description is a string."""
         if not isinstance(v, str):
@@ -80,7 +83,8 @@ class AnomalyList(BaseModel):
 
     anomalies: List[Anomaly] = Field(description="The list of anomalies")
 
-    @validator("anomalies")  # type: ignore
+    @field_validator("anomalies")
+    @classmethod
     def validate_anomalies(cls, v: List[Anomaly]) -> List[Anomaly]:
         """Validate that anomalies is a list."""
         if not isinstance(v, list):
@@ -88,72 +92,200 @@ class AnomalyList(BaseModel):
         return v
 
 
-class AgentState(TypedDict, total=False):
-    """State for the anomaly detection agent."""
+class AgentConfig(BaseModel):
+    """Configuration for the anomaly detection agent."""
+    
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        frozen=True
+    )
+    
+    model_name: str = Field(default=DEFAULT_MODEL_NAME, description="OpenAI model name")
+    timestamp_col: str = Field(default=DEFAULT_TIMESTAMP_COL, description="Timestamp column name")
+    verify_anomalies: bool = Field(default=True, description="Whether to verify detected anomalies")
+    detection_prompt: str = Field(default="", description="Custom detection prompt")
+    verification_prompt: str = Field(default="", description="Custom verification prompt")
+    max_retries: int = Field(default=3, ge=0, le=10, description="Maximum retry attempts")
+    timeout_seconds: int = Field(default=300, ge=30, le=3600, description="Operation timeout")
 
-    time_series: str
-    variable_name: str
-    detected_anomalies: Optional[AnomalyList]
-    verified_anomalies: Optional[AnomalyList]
-    current_step: str
+
+class AgentState(BaseModel):
+    """Enhanced state for the anomaly detection agent with proper validation."""
+    
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True
+    )
+    
+    # Core data
+    time_series: str = Field(description="Time series data as string")
+    variable_name: str = Field(description="Name of the variable being analyzed")
+    
+    # Results with accumulation support
+    detected_anomalies: Optional[AnomalyList] = Field(default=None, description="Initially detected anomalies")
+    verified_anomalies: Optional[AnomalyList] = Field(default=None, description="Verified anomalies after review")
+    
+    # Execution tracking
+    current_step: str = Field(default="detect", description="Current processing step")
+    error_messages: Annotated[List[str], add] = Field(default_factory=list, description="Accumulated error messages")
+    retry_count: int = Field(default=0, ge=0, description="Current retry attempt")
+    
+    # Metadata
+    processing_start_time: Optional[datetime] = Field(default=None, description="When processing started")
+    processing_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional processing metadata")
+    
+    @field_validator("variable_name")
+    @classmethod
+    def validate_variable_name(cls, v: str) -> str:
+        """Validate variable name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("variable_name cannot be empty")
+        return v.strip()
+    
+    @field_validator("time_series")
+    @classmethod
+    def validate_time_series(cls, v: str) -> str:
+        """Validate time series data is not empty."""
+        if not v or not v.strip():
+            raise ValueError("time_series data cannot be empty")
+        return v
+    
+    @field_validator("current_step")
+    @classmethod
+    def validate_current_step(cls, v: str) -> str:
+        """Validate current step is valid."""
+        valid_steps = {"detect", "verify", "end", "error"}
+        if v not in valid_steps:
+            raise ValueError(f"current_step must be one of {valid_steps}")
+        return v
 
 
-def create_detection_node(llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTEM_PROMPT) -> ToolNode:
+def create_detection_node(llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTEM_PROMPT, verify_anomalies: bool = True):
     """Create the detection node for the graph."""
     chain = get_detection_prompt(detection_prompt) | llm.with_structured_output(AnomalyList)
 
-    def detection_node(state: AgentState) -> AgentState:
+    def detection_node(state: AgentState) -> Dict[str, Any]:
         """Process the state and detect anomalies."""
-        result = chain.invoke(
-            {
-                "time_series": state["time_series"],
-                "variable_name": state["variable_name"],
+        try:
+            result = chain.invoke(
+                {
+                    "time_series": state.time_series,
+                    "variable_name": state.variable_name,
+                }
+            )
+            next_step = "verify" if verify_anomalies else "end"
+            return {
+                "detected_anomalies": result, 
+                "current_step": next_step,
+                "processing_metadata": {
+                    **state.processing_metadata,
+                    "detection_completed": datetime.now().isoformat()
+                }
             }
-        )
-        return {"detected_anomalies": result, "current_step": "verify"}
+        except Exception as e:
+            return {
+                "current_step": "error",
+                "error_messages": [f"Detection failed: {str(e)}"],
+                "retry_count": state.retry_count + 1
+            }
 
     return detection_node
 
 
-def create_verification_node(llm: ChatOpenAI, verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT) -> ToolNode:
+def create_verification_node(llm: ChatOpenAI, verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT):
     """Create the verification node for the graph."""
     chain = get_verification_prompt(verification_prompt) | llm.with_structured_output(AnomalyList)
 
-    def verification_node(state: AgentState) -> AgentState:
+    def verification_node(state: AgentState) -> Dict[str, Any]:
         """Process the state and verify anomalies."""
-        if state["detected_anomalies"] is None:
-            return {"verified_anomalies": None, "current_step": "end"}
+        try:
+            if state.detected_anomalies is None:
+                return {
+                    "verified_anomalies": None, 
+                    "current_step": "end",
+                    "processing_metadata": {
+                        **state.processing_metadata,
+                        "verification_skipped": "no_anomalies_detected"
+                    }
+                }
 
-        detected_str = "\n".join(
-            [
-                (
-                    f"timestamp: {a.timestamp}, "
-                    f"value: {a.variable_value}, "  # noqa: E501
-                    f"Description: {a.anomaly_description}"  # noqa: E501
-                )
-                for a in state["detected_anomalies"].anomalies
-            ]
-        )
+            detected_str = "\n".join(
+                [
+                    (
+                        f"timestamp: {a.timestamp}, "
+                        f"value: {a.variable_value}, "
+                        f"Description: {a.anomaly_description}"
+                    )
+                    for a in state.detected_anomalies.anomalies
+                ]
+            )
 
-        result = chain.invoke(
-            {
-                "time_series": state["time_series"],
-                "variable_name": state["variable_name"],
-                "detected_anomalies": detected_str,  # noqa: E501
+            result = chain.invoke(
+                {
+                    "time_series": state.time_series,
+                    "variable_name": state.variable_name,
+                    "detected_anomalies": detected_str,
+                }
+            )
+            return {
+                "verified_anomalies": result, 
+                "current_step": "end",
+                "processing_metadata": {
+                    **state.processing_metadata,
+                    "verification_completed": datetime.now().isoformat(),
+                    "anomalies_verified": len(result.anomalies) if result else 0
+                }
             }
-        )
-        return {"verified_anomalies": result, "current_step": "end"}
+        except Exception as e:
+            return {
+                "current_step": "error",
+                "error_messages": [f"Verification failed: {str(e)}"],
+                "retry_count": state.retry_count + 1
+            }
 
     return verification_node
 
 
-def should_verify(state: AgentState) -> Literal["verify", "end"]:
+def should_verify(state: AgentState) -> Literal["verify", "end", "error"]:
     """Determine if we should proceed to verification."""
-    return "verify" if state["current_step"] == "verify" else "end"
+    if state.current_step == "error":
+        return "error"
+    return "verify" if state.current_step == "verify" else "end"
+
+
+def create_error_handler_node():
+    """Create an error handling node for failed operations."""
+    
+    def error_handler_node(state: AgentState) -> Dict[str, Any]:
+        """Handle errors and determine retry logic."""
+        max_retries = 3  # Could be configurable
+        
+        if state.retry_count < max_retries:
+            return {
+                "current_step": "detect",
+                "retry_count": state.retry_count,
+                "processing_metadata": {
+                    **state.processing_metadata,
+                    f"retry_attempt_{state.retry_count}": datetime.now().isoformat()
+                }
+            }
+        else:
+            return {
+                "current_step": "end",
+                "processing_metadata": {
+                    **state.processing_metadata,
+                    "max_retries_exceeded": True,
+                    "final_error": state.error_messages[-1] if state.error_messages else "Unknown error"
+                }
+            }
+    
+    return error_handler_node
 
 
 class AnomalyAgent:
-    """Agent for detecting and verifying anomalies in time series data."""
+    """Enhanced agent for detecting and verifying anomalies in time series data."""
 
     def __init__(
         self,
@@ -162,8 +294,10 @@ class AnomalyAgent:
         verify_anomalies: bool = True,
         detection_prompt: str = DEFAULT_SYSTEM_PROMPT,
         verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
+        max_retries: int = 3,
+        timeout_seconds: int = 300,
     ):
-        """Initialize the AnomalyAgent with a specific model.
+        """Initialize the AnomalyAgent with enhanced configuration.
 
         Args:
             model_name: The name of the OpenAI model to use
@@ -173,29 +307,69 @@ class AnomalyAgent:
                 Defaults to the standard detection prompt.
             verification_prompt: System prompt for anomaly verification.
                 Defaults to the standard verification prompt.
+            max_retries: Maximum retry attempts for failed operations
+            timeout_seconds: Operation timeout in seconds
         """
-        self.llm = ChatOpenAI(model=model_name)
-        self.timestamp_col = timestamp_col
-        self.verify_anomalies = verify_anomalies
-        self.detection_prompt = detection_prompt
-        self.verification_prompt = verification_prompt
+        # Create configuration with validation
+        self.config = AgentConfig(
+            model_name=model_name,
+            timestamp_col=timestamp_col,
+            verify_anomalies=verify_anomalies,
+            detection_prompt=detection_prompt or DEFAULT_SYSTEM_PROMPT,
+            verification_prompt=verification_prompt or DEFAULT_VERIFY_SYSTEM_PROMPT,
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+        )
+        
+        # Initialize LLM
+        self.llm = ChatOpenAI(model=self.config.model_name)
+        
+        # Expose commonly used config as properties for backward compatibility
+        self.timestamp_col = self.config.timestamp_col
+        self.verify_anomalies = self.config.verify_anomalies
+        self.detection_prompt = self.config.detection_prompt
+        self.verification_prompt = self.config.verification_prompt
 
         # Create the graph
+        self._create_graph()
+
+    def _create_graph(self) -> None:
+        """Create and compile the processing graph."""
+        # Create graph with proper state schema
         self.graph = StateGraph(AgentState)
 
         # Add nodes
-        self.graph.add_node("detect", create_detection_node(self.llm, detection_prompt))
-        if self.verify_anomalies:
-            self.graph.add_node("verify", create_verification_node(self.llm, verification_prompt))
+        self.graph.add_node("detect", create_detection_node(self.llm, self.config.detection_prompt, self.config.verify_anomalies))
+        self.graph.add_node("error", create_error_handler_node())
+        
+        if self.config.verify_anomalies:
+            self.graph.add_node("verify", create_verification_node(self.llm, self.config.verification_prompt))
 
-        # Add edges with proper routing
-        if self.verify_anomalies:
+        # Add edges with proper routing based on verification setting
+        if self.config.verify_anomalies:
             self.graph.add_conditional_edges(
-                "detect", should_verify, {"verify": "verify", "end": END}
+                "detect", 
+                should_verify, 
+                {"verify": "verify", "end": END, "error": "error"}
             )
             self.graph.add_edge("verify", END)
+            self.graph.add_conditional_edges(
+                "error",
+                lambda state: "detect" if state.retry_count < self.config.max_retries else "end",
+                {"detect": "detect", "end": END}
+            )
         else:
-            self.graph.add_edge("detect", END)
+            # Without verification, go directly to end or error
+            self.graph.add_conditional_edges(
+                "detect", 
+                lambda state: "error" if state.current_step == "error" else "end",
+                {"end": END, "error": "error"}
+            )
+            self.graph.add_conditional_edges(
+                "error",
+                lambda state: "detect" if state.retry_count < self.config.max_retries else "end",
+                {"detect": "detect", "end": END}
+            )
 
         # Set entry point
         self.graph.set_entry_point("detect")
@@ -220,41 +394,30 @@ class AnomalyAgent:
         Returns:
             Dictionary mapping column names to their respective AnomalyList
         """
-        if timestamp_col is not None:
-            self.timestamp_col = timestamp_col
-
-        # Use instance default if verify_anomalies not specified
-        verify_anomalies = (
-            self.verify_anomalies if verify_anomalies is None else verify_anomalies
-        )
-
-        # Create a new graph for this detection run
-        graph = StateGraph(AgentState)
-
-        # Add nodes
-        graph.add_node("detect", create_detection_node(self.llm, self.detection_prompt))
-        if verify_anomalies:
-            graph.add_node("verify", create_verification_node(self.llm, self.verification_prompt))
-
-        # Add edges with proper routing
-        if verify_anomalies:
-            graph.add_conditional_edges(
-                "detect", should_verify, {"verify": "verify", "end": END}
+        # Update configuration if needed
+        current_timestamp_col = timestamp_col or self.config.timestamp_col
+        current_verify = verify_anomalies if verify_anomalies is not None else self.config.verify_anomalies
+        
+        # Recreate graph if verification setting changed (avoid this in future with reusable graph)
+        if current_verify != self.config.verify_anomalies:
+            temp_config = self.config.model_copy(update={"verify_anomalies": current_verify})
+            temp_agent = AnomalyAgent(
+                model_name=temp_config.model_name,
+                timestamp_col=current_timestamp_col,
+                verify_anomalies=current_verify,
+                detection_prompt=temp_config.detection_prompt,
+                verification_prompt=temp_config.verification_prompt,
+                max_retries=temp_config.max_retries,
+                timeout_seconds=temp_config.timeout_seconds
             )
-            graph.add_edge("verify", END)
+            app = temp_agent.app
         else:
-            graph.add_edge("detect", END)
-
-        # Set entry point
-        graph.set_entry_point("detect")
-
-        # Compile the graph
-        app = graph.compile()
+            app = self.app
 
         # Check if timestamp column exists
-        if self.timestamp_col not in df.columns:
+        if current_timestamp_col not in df.columns:
             raise KeyError(
-                f"Timestamp column '{self.timestamp_col}' not found in DataFrame"
+                f"Timestamp column '{current_timestamp_col}' not found in DataFrame"
             )
 
         # Get numeric columns
@@ -265,7 +428,7 @@ class AnomalyAgent:
             return {
                 col: AnomalyList(anomalies=[])
                 for col in df.columns
-                if col != self.timestamp_col
+                if col != current_timestamp_col
             }
 
         # Convert DataFrame to string format
@@ -274,21 +437,45 @@ class AnomalyAgent:
         # Process each numeric column
         results = {}
         for col in numeric_cols:
-            # Create state for this column
-            state = {
-                "time_series": df_str,
-                "variable_name": col,
-                "current_step": "detect",
-            }
+            # Create enhanced state for this column using Pydantic model
+            state = AgentState(
+                time_series=df_str,
+                variable_name=col,
+                current_step="detect",
+                processing_start_time=datetime.now(),
+                processing_metadata={
+                    "column": col,
+                    "total_rows": len(df),
+                    "verification_enabled": current_verify
+                }
+            )
 
             # Run the graph
             result = app.invoke(state)
-            if verify_anomalies:
-                results[col] = result["verified_anomalies"] or AnomalyList(anomalies=[])
+            
+            # Extract results based on verification setting
+            if current_verify:
+                results[col] = result.get("verified_anomalies") or AnomalyList(anomalies=[])
             else:
-                results[col] = result["detected_anomalies"] or AnomalyList(anomalies=[])
+                results[col] = result.get("detected_anomalies") or AnomalyList(anomalies=[])
 
         return results
+
+    def get_processing_metadata(self, result_state: Any) -> Dict[str, Any]:
+        """Extract processing metadata from the final state.
+        
+        Args:
+            result_state: Final state from graph execution
+            
+        Returns:
+            Dictionary containing processing metadata
+        """
+        if hasattr(result_state, 'processing_metadata'):
+            return result_state.processing_metadata
+        elif isinstance(result_state, dict):
+            return result_state.get('processing_metadata', {})
+        else:
+            return {}
 
     def get_anomalies_df(
         self, anomalies: Dict[str, AnomalyList], format: str = "long"

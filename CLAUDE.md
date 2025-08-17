@@ -8,10 +8,12 @@ The `anomaly-agent` package is a Python library for detecting anomalies in time 
 
 ### Core Components
 
-- **AnomalyAgent** (`anomaly_agent/agent.py`): The main agent class that uses LangGraph to orchestrate anomaly detection and verification workflows
-- **Detection/Verification Pipeline**: Uses a state graph with separate nodes for detection and optional verification steps
-- **Pydantic Models**: Structured output models (`Anomaly`, `AnomalyList`) to ensure consistent LLM responses
-- **Prompt System** (`anomaly_agent/prompt.py`): Customizable prompts for detection and verification phases
+- **AnomalyAgent** (`anomaly_agent/agent.py`): Enhanced main agent class with modern LangGraph patterns, Pydantic-based configuration, and robust error handling
+- **AgentConfig**: Validated configuration management with built-in constraints and type safety
+- **AgentState**: Enhanced Pydantic state model with validation, error tracking, and processing metadata
+- **Detection/Verification Pipeline**: Modern LangGraph implementation with proper routing, error handling, and retry mechanisms
+- **Pydantic Models**: Comprehensive structured models (`Anomaly`, `AnomalyList`, `AgentConfig`, `AgentState`) with v2 field validators
+- **Prompt System** (`anomaly_agent/prompt.py`): Advanced customizable prompts with improved statistical criteria and domain awareness
 
 ### Key Files
 
@@ -81,16 +83,30 @@ make examples
 
 ## Package Architecture
 
-The agent uses a two-stage pipeline implemented with LangGraph:
+The agent uses a modern two-stage pipeline implemented with enhanced LangGraph patterns:
 
-1. **Detection Stage**: Analyzes time series data to identify potential anomalies
+1. **Detection Stage**: Analyzes time series data to identify potential anomalies with robust error handling
 2. **Verification Stage** (optional): Re-examines detected anomalies to reduce false positives
+3. **Error Handling**: Built-in retry mechanisms with configurable limits and exponential backoff logic
+
+### Phase 1 Enhancements (Completed)
+
+The agent now includes modern LangGraph best practices:
+
+- **Pydantic-based State Management**: Replaced TypedDict with validated Pydantic models
+- **Configuration Validation**: Centralized `AgentConfig` with built-in constraints (max_retries: 0-10, timeout: 30-3600s)
+- **Enhanced Error Tracking**: State includes error messages, retry counts, and processing metadata
+- **Improved Routing**: Conditional edge logic properly handles verification on/off scenarios
+- **Field Validators**: Pydantic v2 validators ensure data integrity throughout processing
+- **Processing Observability**: Timestamps and metadata tracking for debugging and monitoring
 
 The agent supports:
-- Custom prompts for both detection and verification
-- Configurable verification (can be disabled)
+- Custom prompts for both detection and verification with validation
+- Configurable verification (can be disabled with proper graph routing)
 - Multiple time series variables in a single DataFrame
-- Structured output via Pydantic models
+- Structured output via comprehensive Pydantic models
+- Built-in retry mechanisms and error recovery
+- Enhanced configuration management with validation
 
 ## Configuration
 
