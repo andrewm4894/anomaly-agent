@@ -357,7 +357,7 @@ class AnomalyAgent:
                     {
                         "timestamp": anomaly.timestamp,
                         "variable_name": variable_name,
-                        "variable_value": anomaly.variable_value,
+                        "value": anomaly.variable_value,
                         "anomaly_description": anomaly.anomaly_description,
                     }
                 )
@@ -366,18 +366,31 @@ class AnomalyAgent:
         
         if len(df) == 0:
             # Return empty DataFrame with correct columns
-            return pd.DataFrame(columns=["timestamp", "variable_name", "variable_value", "anomaly_description"])
+            return pd.DataFrame(columns=["timestamp", "variable_name", "value", "anomaly_description"])
+        
+        # Convert timestamp to datetime for proper merging
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
 
         if format == "wide":
-            # Pivot to wide format
-            df_wide = df.pivot_table(
+            # Pivot to wide format - create separate DataFrames for values and descriptions
+            df_values = df.pivot_table(
                 index="timestamp", 
                 columns="variable_name", 
-                values=["variable_value", "anomaly_description"], 
+                values="value", 
                 aggfunc='first'
             )
-            # Flatten column names
-            df_wide.columns = [f"{col[1]}_{col[0]}" for col in df_wide.columns]
+            df_descriptions = df.pivot_table(
+                index="timestamp", 
+                columns="variable_name", 
+                values="anomaly_description", 
+                aggfunc='first'
+            )
+            
+            # Combine the two pivot tables
+            df_wide = df_values.copy()
+            for col in df_descriptions.columns:
+                df_wide[f"{col}_description"] = df_descriptions[col]
+            
             df_wide = df_wide.reset_index()
             return df_wide
 
