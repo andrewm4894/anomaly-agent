@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from anomaly_agent.agent import Anomaly, AnomalyAgent, AnomalyList
+from anomaly_agent import Anomaly, AnomalyAgent, AnomalyList
 from anomaly_agent.prompt import (
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_VERIFY_SYSTEM_PROMPT,

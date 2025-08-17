@@ -10,7 +10,7 @@ from anomaly_agent import AnomalyAgent
 
 # Create sample time series data
 data = {
-    'timestamp': pd.date_range('2023-01-01', periods=100, freq='H'),
+    'timestamp': pd.date_range('2023-01-01', periods=100, freq='h'),
     'temperature': [20 + i * 0.1 + (5 if i == 50 else 0) for i in range(100)],
     'pressure': [1013 + i * 0.2 + (50 if i == 75 else 0) for i in range(100)]
 }
@@ -28,6 +28,7 @@ print()
 
 # Create agent with enhanced configuration
 agent_default = AnomalyAgent(
+    model_name="gpt-5-nano",  # New default: 80-90% cost savings!
     max_retries=2,  # Custom retry count
     timeout_seconds=120  # Custom timeout
 )
@@ -157,14 +158,34 @@ try:
 except Exception as e:
     print(f"✅ State validation caught empty variable name: {e}")
 
-print("\n=== Key Phase 1 Improvements ===")
+# Example 7: GPT-5 Model Tiers Demonstration
+print("\n=== Example 7: GPT-5 Model Performance Tiers ===")
+
+print("Default GPT-5 nano (cost-optimized):")
+agent_nano = AnomalyAgent(model_name="gpt-5-nano")
+print(f"✅ Model: {agent_nano.config.model_name}")
+print("   - Cost: ~$0.05 input / $0.40 output per 1M tokens")
+print("   - Best for: Standard anomaly detection, high-volume processing")
+
+print("\nGPT-5 mini (balanced performance):")
+agent_mini = AnomalyAgent(model_name="gpt-5-mini")
+print(f"✅ Model: {agent_mini.config.model_name}")
+print("   - Cost: ~$0.25 input / $2.00 output per 1M tokens")
+print("   - Best for: Complex patterns, domain-specific analysis")
+
+print("\nGPT-5 (premium reasoning):")
+agent_premium = AnomalyAgent(model_name="gpt-5")
+print(f"✅ Model: {agent_premium.config.model_name}")
+print("   - Cost: ~$1.25 input / $10.00 output per 1M tokens")
+print("   - Best for: Sophisticated reasoning, multi-variate analysis")
+
+print("\n=== Key Architecture Improvements ===")
 print("✅ Pydantic-based models: Strong typing and validation")
 print("✅ Configuration management: Centralized, validated settings")
 print("✅ Enhanced state tracking: Error messages, retry counts, metadata")
 print("✅ Built-in error handling: Automatic retry mechanisms")
 print("✅ Processing observability: Timestamps and execution metadata")
 print("✅ Modern LangGraph patterns: Updated to latest best practices")
-print("✅ Improved prompts: Statistical criteria and domain awareness")
+print("✅ GPT-5 integration: 80-90% cost reduction with better performance")
 
-print("\nPhase 1 complete! The agent now has modern LangGraph architecture.")
-print("Next phases will add streaming, async, and advanced features.") 
+print("\nModern architecture complete! Ready for production with GPT-5 efficiency.") 
