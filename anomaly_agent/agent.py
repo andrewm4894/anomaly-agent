@@ -17,6 +17,14 @@ import pandas as pd
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv is optional - continue without it if not installed
+    pass
+
 from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
 from .prompt import DEFAULT_SYSTEM_PROMPT, DEFAULT_VERIFY_SYSTEM_PROMPT
 from .graph import GraphManager

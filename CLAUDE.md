@@ -28,27 +28,44 @@ The `anomaly-agent` package is a Python library for detecting anomalies in time 
 
 ## Development Commands
 
+**The Makefile now automatically manages the virtual environment!** All commands will create the venv if it doesn't exist and use it automatically.
+
+### Environment Setup
+```bash
+# Everything is automatic! The venv is created and managed by make targets
+# First time setup:
+make requirements-install  # Creates venv + installs runtime dependencies  
+make requirements-dev      # Installs development dependencies
+
+# Or install everything at once:
+make requirements-dev      # This will also install runtime dependencies
+```
+
 ### Testing
 ```bash
-# Run all tests with coverage
+# Run all tests with coverage (venv managed automatically)
 make test
 # or
-pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
+make tests
 
-# Run specific test files
-pytest tests/test_agent.py -v                      # Core agent functionality
-pytest tests/test_prompts.py -v                    # Prompt system tests
-pytest tests/test_graph_architecture.py -v         # Advanced architecture tests
+# For specific test files, use venv directly:
+source venv/bin/activate && pytest tests/test_agent.py -v                      # Core agent functionality
+source venv/bin/activate && pytest tests/test_prompts.py -v                    # Prompt system tests
+source venv/bin/activate && pytest tests/test_graph_architecture.py -v         # Advanced architecture tests
+source venv/bin/activate && pytest tests/test_streaming_parallel.py -v         # Streaming and parallel features
 
-# Run architecture-specific tests
-pytest tests/test_graph_architecture.py::TestGraphManager -v           # Graph caching tests
-pytest tests/test_graph_architecture.py::TestDetectionNode -v          # Class-based node tests
-pytest tests/test_graph_architecture.py::TestErrorHandlerNode -v       # Error handling tests
+# Run architecture-specific tests:
+source venv/bin/activate && pytest tests/test_graph_architecture.py::TestGraphManager -v           # Graph caching tests
+source venv/bin/activate && pytest tests/test_graph_architecture.py::TestDetectionNode -v          # Class-based node tests
+source venv/bin/activate && pytest tests/test_graph_architecture.py::TestErrorHandlerNode -v       # Error handling tests
+
+# Integration tests (requires OPENAI_API_KEY in .env - automatically loaded by AnomalyAgent)
+source venv/bin/activate && pytest tests/ -m integration -v
 ```
 
 ### Code Quality
 ```bash
-# Install pre-commit hooks
+# Install pre-commit hooks (venv managed automatically)
 make pre-commit-install
 
 # Run all pre-commit checks
@@ -57,23 +74,23 @@ make pre-commit
 # Auto-fix formatting issues
 make pre-commit-fix
 
-# Individual tools (configured in pyproject.toml)
-black anomaly_agent/  # Code formatting (line-length: 79)
-isort anomaly_agent/  # Import sorting
-flake8 anomaly_agent/ # Linting
-mypy anomaly_agent/   # Type checking
+# For individual tools, use venv directly:
+source venv/bin/activate && black anomaly_agent/  # Code formatting (line-length: 79)
+source venv/bin/activate && isort anomaly_agent/  # Import sorting
+source venv/bin/activate && flake8 anomaly_agent/ # Linting
+source venv/bin/activate && mypy anomaly_agent/   # Type checking
 ```
 
 ### Dependencies
 ```bash
-# Install development dependencies
+# Install development dependencies (venv managed automatically)
 make requirements-dev
 
-# Install runtime dependencies
-pip install -r requirements.txt
+# Install runtime dependencies (venv managed automatically)
+make requirements-install
 
-# Install package in editable mode
-pip install -e .
+# For editable development install, use venv directly:
+source venv/bin/activate && pip install -e .
 ```
 
 ### Building and Publishing
@@ -194,7 +211,10 @@ agent = AnomalyAgent(model_name="gpt-4o-mini") # ~$0.60/$2.40 per 1M tokens
 
 ## Testing Requirements
 
-- Tests require `OPENAI_API_KEY` environment variable
-- All tests should maintain coverage above current thresholds
+- Tests require `OPENAI_API_KEY` environment variable (automatically loaded from `.env` file by AnomalyAgent)
+- **Simple testing**: Just run `make test` - the Makefile handles venv management automatically
+- All tests should maintain coverage above current thresholds  
 - New features should include both unit tests and integration tests
 - Use `pytest-mock` for mocking LLM calls when appropriate
+- Environment variables are automatically loaded via python-dotenv integration in AnomalyAgent
+- The venv is created and activated automatically by all make targets

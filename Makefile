@@ -3,38 +3,48 @@
 .PHONY: requirements-dev
 .PHONY: build publish tests
 .PHONY: pre-commit pre-commit-install pre-commit-fix
-.PHONY: examples
+.PHONY: examples venv
 
+# Virtual environment activation
+VENV_ACTIVATE = source venv/bin/activate &&
 
-requirements-compile:
-	pip-compile requirements.compile
+# Check if venv exists, create if not
+venv:
+	@if [ ! -d "venv" ]; then \
+		echo "Creating virtual environment..."; \
+		python -m venv venv; \
+		$(VENV_ACTIVATE) pip install --upgrade pip; \
+	fi
 
-requirements-install:
-	pip install -r requirements.txt
+requirements-compile: venv
+	$(VENV_ACTIVATE) pip-compile requirements.compile
 
-requirements-dev:
-	pip install -r requirements-dev.txt
+requirements-install: venv
+	$(VENV_ACTIVATE) pip install -r requirements.txt
 
-build:
-	@python -m build
+requirements-dev: venv
+	$(VENV_ACTIVATE) pip install -r requirements-dev.txt
 
-publish:
-	@python -c "import glob; import os; files = glob.glob('dist/*.whl') + glob.glob('dist/*.tar.gz'); latest = max(files, key=os.path.getctime) if files else exit(1); print(f'Publishing: {latest}'); input('Continue? (y/n) ') == 'y' or exit(1); exit(os.system(f'twine upload {latest}'))"
+build: venv
+	$(VENV_ACTIVATE) python -m build
 
-tests:
-	pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
+publish: venv
+	$(VENV_ACTIVATE) python -c "import glob; import os; files = glob.glob('dist/*.whl') + glob.glob('dist/*.tar.gz'); latest = max(files, key=os.path.getctime) if files else exit(1); print(f'Publishing: {latest}'); input('Continue? (y/n) ') == 'y' or exit(1); exit(os.system(f'twine upload {latest}'))"
+
+tests: venv
+	$(VENV_ACTIVATE) pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
 
 test: tests
 
-pre-commit-install:
-	pip install pre-commit
-	pre-commit install
+pre-commit-install: venv
+	$(VENV_ACTIVATE) pip install pre-commit
+	$(VENV_ACTIVATE) pre-commit install
 
-pre-commit:
-	pre-commit run --all-files
+pre-commit: venv
+	$(VENV_ACTIVATE) pre-commit run --all-files
 
-pre-commit-fix:
-	pre-commit run --all-files --fix
+pre-commit-fix: venv
+	$(VENV_ACTIVATE) pre-commit run --all-files --fix
 
-examples:
-	@python examples/examples.py $(ARGS)
+examples: venv
+	$(VENV_ACTIVATE) python examples/examples.py $(ARGS)

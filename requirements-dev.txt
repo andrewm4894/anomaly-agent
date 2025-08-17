@@ -10,4 +10,3 @@ isort
 flake8
 mypy
 pre-commit
-python-dotenv
