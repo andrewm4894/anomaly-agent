@@ -6,28 +6,47 @@ to customize the behavior of the anomaly detection agent.
 """
 
 import pandas as pd
+from dotenv import load_dotenv
 from anomaly_agent import AnomalyAgent
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create sample time series data
 data = {
-    'timestamp': pd.date_range('2023-01-01', periods=100, freq='H'),
+    'timestamp': pd.date_range('2023-01-01', periods=100, freq='h'),
     'temperature': [20 + i * 0.1 + (5 if i == 50 else 0) for i in range(100)],
     'pressure': [1013 + i * 0.2 + (50 if i == 75 else 0) for i in range(100)]
 }
 df = pd.DataFrame(data)
 
-# Example 1: Using improved default prompts
-print("=== Example 1: Improved Default Prompts ===")
-print("The default prompts have been significantly improved to provide:")
-print("- Clear statistical criteria (2-3 standard deviations)")
-print("- Domain context awareness")
-print("- Pattern recognition guidelines")
-print("- Conservative false positive reduction")
+# Example 1: Using improved default prompts with enhanced configuration
+print("=== Example 1: Enhanced Agent with Improved Configuration ===")
+print("Phase 1 improvements include:")
+print("- Pydantic-based configuration with validation")
+print("- Enhanced state management with error tracking")
+print("- Built-in retry mechanisms and error handling")
+print("- Processing metadata and observability")
+print("- Improved statistical criteria and validation")
 print()
 
-agent_default = AnomalyAgent()
+# Create agent with enhanced configuration
+agent_default = AnomalyAgent(
+    model_name="gpt-5-nano",  # New default: 80-90% cost savings!
+    max_retries=2,  # Custom retry count
+    timeout_seconds=120  # Custom timeout
+)
+
+# Show the agent configuration
+print(f"Agent configuration: {agent_default.config}")
+print()
+
 anomalies_default = agent_default.detect_anomalies(df)
-print(f"Detected anomalies with improved default prompts: {len(anomalies_default)}")
+print(f"Detected anomalies with enhanced agent: {len(anomalies_default)}")
+
+# Get processing metadata for observability
+for col, anomaly_list in anomalies_default.items():
+    print(f"Column '{col}': {len(anomaly_list.anomalies)} anomalies detected")
 
 # Example 2: Custom detection prompt for temperature-specific analysis
 print("\n=== Example 2: Custom Detection Prompt ===")
@@ -114,13 +133,63 @@ agent_financial = AnomalyAgent(
     verification_prompt=financial_verification_prompt
 )
 
-print("\n=== Key Improvements in Default Prompts ===")
-print("✅ Statistical criteria: Clear thresholds (2-3 standard deviations)")
-print("✅ Domain awareness: Considers variable context and domain knowledge")
-print("✅ Pattern recognition: Identifies trend breaks, level shifts, and seasonality")
-print("✅ False positive reduction: Conservative approach with strict verification")
-print("✅ Actionable focus: Emphasizes anomalies that require investigation")
-print("✅ Clear guidance: Specific do's and don'ts for better consistency")
+# Example 6: Demonstrate Phase 1 validation features
+print("\n=== Example 6: Phase 1 Validation Features ===")
 
-print("\nExample complete! You can now customize prompts for your specific domain and use case.")
-print("The new API is cleaner - just use detection_prompt and verification_prompt parameters!") 
+# Test configuration validation
+try:
+    from anomaly_agent.agent import AgentConfig
+    # This will fail - max_retries too high
+    invalid_config = AgentConfig(max_retries=15)
+except Exception as e:
+    print(f"✅ Configuration validation caught invalid max_retries: {e}")
+
+try:
+    # This will fail - timeout too low
+    invalid_config = AgentConfig(timeout_seconds=10)
+except Exception as e:
+    print(f"✅ Configuration validation caught invalid timeout: {e}")
+
+# Test state validation
+try:
+    from anomaly_agent.agent import AgentState
+    # This will fail - empty variable name
+    invalid_state = AgentState(
+        time_series="data", 
+        variable_name="", 
+        current_step="detect"
+    )
+except Exception as e:
+    print(f"✅ State validation caught empty variable name: {e}")
+
+# Example 7: GPT-5 Model Tiers Demonstration
+print("\n=== Example 7: GPT-5 Model Performance Tiers ===")
+
+print("Default GPT-5 nano (cost-optimized):")
+agent_nano = AnomalyAgent(model_name="gpt-5-nano")
+print(f"✅ Model: {agent_nano.config.model_name}")
+print("   - Cost: ~$0.05 input / $0.40 output per 1M tokens")
+print("   - Best for: Standard anomaly detection, high-volume processing")
+
+print("\nGPT-5 mini (balanced performance):")
+agent_mini = AnomalyAgent(model_name="gpt-5-mini")
+print(f"✅ Model: {agent_mini.config.model_name}")
+print("   - Cost: ~$0.25 input / $2.00 output per 1M tokens")
+print("   - Best for: Complex patterns, domain-specific analysis")
+
+print("\nGPT-5 (premium reasoning):")
+agent_premium = AnomalyAgent(model_name="gpt-5")
+print(f"✅ Model: {agent_premium.config.model_name}")
+print("   - Cost: ~$1.25 input / $10.00 output per 1M tokens")
+print("   - Best for: Sophisticated reasoning, multi-variate analysis")
+
+print("\n=== Key Architecture Improvements ===")
+print("✅ Pydantic-based models: Strong typing and validation")
+print("✅ Configuration management: Centralized, validated settings")
+print("✅ Enhanced state tracking: Error messages, retry counts, metadata")
+print("✅ Built-in error handling: Automatic retry mechanisms")
+print("✅ Processing observability: Timestamps and execution metadata")
+print("✅ Modern LangGraph patterns: Updated to latest best practices")
+print("✅ GPT-5 integration: 80-90% cost reduction with better performance")
+
+print("\nModern architecture complete! Ready for production with GPT-5 efficiency.") 

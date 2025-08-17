@@ -5,3 +5,4 @@ langchain-openai
 langchain-core
 matplotlib
 langgraph
+python-dotenv

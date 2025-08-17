@@ -4,6 +4,7 @@ twine
 pytest
 pytest-cov
 pytest-mock
+pytest-asyncio
 black
 isort
 flake8

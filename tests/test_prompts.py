@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from langchain_core.prompts import ChatPromptTemplate
 
-from anomaly_agent.agent import AnomalyAgent, AnomalyList
+from anomaly_agent import AnomalyAgent, AnomalyList
 from anomaly_agent.prompt import (
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_VERIFY_SYSTEM_PROMPT,
@@ -239,15 +239,16 @@ def test_mixed_parameters_with_prompts() -> None:
 
 
 def test_empty_custom_prompt() -> None:
-    """Test behavior with empty custom prompts (should still work)."""
-    # Empty strings should still work (though not recommended)
+    """Test behavior with empty custom prompts (should use defaults)."""
+    # Empty strings should fallback to defaults (improved behavior)
     agent = AnomalyAgent(
         detection_prompt="",
         verification_prompt=""
     )
     
-    assert agent.detection_prompt == ""
-    assert agent.verification_prompt == ""
+    # Empty prompts should fallback to defaults
+    assert agent.detection_prompt == DEFAULT_SYSTEM_PROMPT
+    assert agent.verification_prompt == DEFAULT_VERIFY_SYSTEM_PROMPT
 
 
 def test_prompt_content_isolation() -> None:
