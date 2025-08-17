@@ -23,6 +23,36 @@
 
 A Python package for detecting anomalies in time series data using Large Language Models.
 
+## How It Works
+
+The AnomalyAgent uses a LangGraph-based state machine to orchestrate anomaly detection and verification workflows:
+
+```mermaid
+graph TD
+    A[Start] --> B[Detection Node]
+    B --> C{Anomalies Found?}
+    C -->|No| D[End - No Anomalies]
+    C -->|Yes| E{Verification Enabled?}
+    E -->|No| F[End - Return Detected]
+    E -->|Yes| G["`Verification Chain
+    (n_verify_steps: 1-5)`"]
+    G --> H[End - Return Verified]
+    
+    B -->|Error| I[Error Handler]
+    I -->|Retry| B
+    I -->|Max Retries| J[End - Error]
+    
+    style B fill:#e1f5fe
+    style G fill:#f3e5f5
+    style I fill:#ffebee
+```
+
+**Key Components:**
+- **Detection Node**: Analyzes time series data to identify potential anomalies using LLM
+- **Verification Node(s)**: Re-examines detected anomalies through multiple rounds to reduce false positives
+- **Error Handler**: Manages retries and failure scenarios with exponential backoff
+- **Graph Caching**: Reuses compiled graphs across agents with same configuration for efficiency
+
 ## Installation
 
 ```bash
