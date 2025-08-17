@@ -9,6 +9,7 @@ from .graph import GraphManager
 from .nodes import DetectionNode, VerificationNode, ErrorHandlerNode
 from .plot import plot_df
 from .utils import make_anomaly_config, make_df
+from .streaming import StreamingProgressHandler
 
 __version__ = "0.8.0"
 
@@ -22,6 +23,7 @@ __all__ = [
     "DetectionNode",
     "VerificationNode",
     "ErrorHandlerNode",
+    "StreamingProgressHandler",
     "plot_df",
     "make_df",
     "make_anomaly_config",

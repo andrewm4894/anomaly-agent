@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
 from .prompt import DEFAULT_SYSTEM_PROMPT, DEFAULT_VERIFY_SYSTEM_PROMPT
 from .graph import GraphManager
+from .streaming import StreamingMixin
 
 
 class Anomaly(BaseModel):
@@ -161,7 +162,7 @@ class AgentState(BaseModel):
         return v
 
 
-class AnomalyAgent:
+class AnomalyAgent(StreamingMixin):
     """Enhanced agent for detecting and verifying anomalies in time series data."""
     
     # Shared graph manager for reusability across instances

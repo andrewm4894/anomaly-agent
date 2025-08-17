@@ -249,6 +249,54 @@ anomalies = agent_single.detect_anomalies(df, n_verify_steps=4)
 - `n_verify_steps=2`: 2x verification cost, good production balance
 - `n_verify_steps=3+`: Higher cost, maximum confidence for critical applications
 
+### Streaming and Parallel Processing
+
+Enhanced user experience and performance for multiple time series variables:
+
+```python
+# Real-time streaming with progress updates
+def progress_handler(column, event, data):
+    if event == "start":
+        print(f"🔍 Starting {column}")
+    elif event == "column_complete":
+        print(f"✅ {column}: {data['anomaly_count']} anomalies")
+
+anomalies = agent.detect_anomalies_streaming(df, progress_callback=progress_handler)
+
+# Parallel processing for faster execution
+import asyncio
+
+async def detect_parallel():
+    anomalies = await agent.detect_anomalies_parallel(
+        df, 
+        max_concurrent=3,  # Process up to 3 columns simultaneously
+        progress_callback=progress_handler
+    )
+    return anomalies
+
+results = asyncio.run(detect_parallel())
+
+# Async streaming for responsive applications
+async def process_with_streaming():
+    async for event in agent.detect_anomalies_streaming_async(df):
+        if event["event"] == "result":
+            print(f"Column {event['column']}: {event['data']['anomaly_count']} anomalies")
+
+asyncio.run(process_with_streaming())
+```
+
+**Key Features:**
+- **Real-time Progress**: Stream updates as each detection step completes
+- **Parallel Execution**: Process multiple time series variables concurrently
+- **Configurable Concurrency**: Control resource usage with `max_concurrent` parameter
+- **Error Resilience**: Graceful handling of failures in parallel execution
+- **Performance Monitoring**: Built-in timing and progress metrics
+
+**Use Cases:**
+- **Streaming**: Interactive dashboards, real-time monitoring, user feedback
+- **Parallel**: Batch processing, large datasets, performance-critical applications  
+- **Async Streaming**: Web applications, reactive UIs, progressive data loading
+
 ### Custom Prompts
 
 Customize the detection and verification prompts for domain-specific analysis:
