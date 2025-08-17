@@ -102,6 +102,7 @@ class AgentConfig(BaseModel):
     model_name: str = Field(default=DEFAULT_MODEL_NAME, description="OpenAI model name")
     timestamp_col: str = Field(default=DEFAULT_TIMESTAMP_COL, description="Timestamp column name")
     verify_anomalies: bool = Field(default=True, description="Whether to verify detected anomalies")
+    n_verify_steps: int = Field(default=1, ge=1, le=5, description="Number of verification steps to run")
     detection_prompt: str = Field(default="", description="Custom detection prompt")
     verification_prompt: str = Field(default="", description="Custom verification prompt")
     max_retries: int = Field(default=3, ge=0, le=10, description="Maximum retry attempts")
@@ -171,6 +172,7 @@ class AnomalyAgent:
         model_name: str = DEFAULT_MODEL_NAME,
         timestamp_col: str = DEFAULT_TIMESTAMP_COL,
         verify_anomalies: bool = True,
+        n_verify_steps: int = 1,
         detection_prompt: str = DEFAULT_SYSTEM_PROMPT,
         verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
         max_retries: int = 3,
@@ -183,6 +185,7 @@ class AnomalyAgent:
             model_name: The name of the OpenAI model to use
             timestamp_col: The name of the timestamp column
             verify_anomalies: Whether to verify detected anomalies (default: True)
+            n_verify_steps: Number of verification steps to run (default: 1)
             detection_prompt: System prompt for anomaly detection.
                 Defaults to the standard detection prompt.
             verification_prompt: System prompt for anomaly verification.
@@ -196,6 +199,7 @@ class AnomalyAgent:
             model_name=model_name,
             timestamp_col=timestamp_col,
             verify_anomalies=verify_anomalies,
+            n_verify_steps=n_verify_steps,
             detection_prompt=detection_prompt or DEFAULT_SYSTEM_PROMPT,
             verification_prompt=verification_prompt or DEFAULT_VERIFY_SYSTEM_PROMPT,
             max_retries=max_retries,
@@ -220,6 +224,7 @@ class AnomalyAgent:
         # Expose commonly used config as properties for backward compatibility
         self.timestamp_col = self.config.timestamp_col
         self.verify_anomalies = self.config.verify_anomalies
+        self.n_verify_steps = self.config.n_verify_steps
         self.detection_prompt = self.config.detection_prompt
         self.verification_prompt = self.config.verification_prompt
 
@@ -231,6 +236,7 @@ class AnomalyAgent:
         df: pd.DataFrame,
         timestamp_col: Optional[str] = None,
         verify_anomalies: Optional[bool] = None,
+        n_verify_steps: Optional[int] = None,
     ) -> Dict[str, AnomalyList]:
         """Detect anomalies in the given time series data.
 
@@ -239,6 +245,8 @@ class AnomalyAgent:
             timestamp_col: Name of the timestamp column (optional)
             verify_anomalies: Whether to verify detected anomalies. If None, uses the
                 instance default (default: None)
+            n_verify_steps: Number of verification steps to run. If None, uses the
+                instance default (default: None)
 
         Returns:
             Dictionary mapping column names to their respective AnomalyList
@@ -246,11 +254,15 @@ class AnomalyAgent:
         # Handle dynamic configuration efficiently with graph manager
         current_timestamp_col = timestamp_col or self.config.timestamp_col
         current_verify = verify_anomalies if verify_anomalies is not None else self.config.verify_anomalies
+        current_n_verify = n_verify_steps if n_verify_steps is not None else self.config.n_verify_steps
         
         # Use graph manager to get appropriate compiled graph (cached and reusable)
-        if current_verify != self.config.verify_anomalies:
-            # Create temporary config for different verification setting
-            temp_config = self.config.model_copy(update={"verify_anomalies": current_verify})
+        if current_verify != self.config.verify_anomalies or current_n_verify != self.config.n_verify_steps:
+            # Create temporary config for different verification settings
+            temp_config = self.config.model_copy(update={
+                "verify_anomalies": current_verify,
+                "n_verify_steps": current_n_verify
+            })
             app = self._graph_manager.get_or_create_graph(temp_config, self.llm)
         else:
             app = self.app
@@ -290,6 +302,7 @@ class AnomalyAgent:
                     "column": col,
                     "total_rows": len(df),
                     "verification_enabled": current_verify,
+                    "n_verify_steps": current_n_verify,
                     "detection_prompt": self.config.detection_prompt,
                     "verification_prompt": self.config.verification_prompt,
                     "max_retries": self.config.max_retries,

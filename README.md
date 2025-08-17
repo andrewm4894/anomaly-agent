@@ -183,11 +183,41 @@ from anomaly_agent import AnomalyAgent
 agent = AnomalyAgent(
     model_name="gpt-5-nano",
     verify_anomalies=True,        # Enable/disable verification step
+    n_verify_steps=2,            # Number of verification rounds (1-5)
     max_retries=3,               # Configure retry behavior
     timeout_seconds=300,         # Set operation timeout
     debug=True                   # Enable detailed logging
 )
 ```
+
+### Multiple Verification Steps
+
+Improve detection accuracy by running multiple verification rounds to reduce false positives:
+
+```python
+# Single verification (default, fastest)
+agent_single = AnomalyAgent(n_verify_steps=1)
+
+# Double verification (good balance for production)
+agent_double = AnomalyAgent(n_verify_steps=2)  
+
+# Triple verification (maximum confidence)
+agent_triple = AnomalyAgent(n_verify_steps=3)
+
+# Runtime override
+anomalies = agent_single.detect_anomalies(df, n_verify_steps=4)
+```
+
+**Benefits:**
+- **Reduced false positives** through multiple LLM evaluations
+- **Better consistency** due to stochastic nature of LLMs  
+- **Configurable trade-off** between accuracy and cost
+- **Detailed metadata** tracking for each verification step
+
+**Performance considerations:**
+- `n_verify_steps=1`: Fastest, standard accuracy
+- `n_verify_steps=2`: 2x verification cost, good production balance
+- `n_verify_steps=3+`: Higher cost, maximum confidence for critical applications
 
 ### Custom Prompts
 

@@ -26,7 +26,7 @@ def demonstrate_graph_caching():
     agents = []
     for i in range(5):
         agent = AnomalyAgent(
-            model_name="gpt-5-nano",  # New cost-optimized default
+            model_name="gpt-5-nano",  # Cost-optimized default
             verify_anomalies=True,
             max_retries=3
         )
@@ -115,21 +115,20 @@ def demonstrate_enhanced_observability():
     
     print("Running anomaly detection with enhanced observability...")
     
-    # Note: In a real test, you'd run: anomalies = agent.detect_anomalies(df)
-    # For demo, we'll show the metadata structure
+    # Run actual anomaly detection
+    anomalies = agent.detect_anomalies(df)
     
-    sample_metadata = {
-        "column": "value",
-        "total_rows": 10,
-        "verification_enabled": False,
-        "detection_prompt": "Custom detection prompt",
-        "max_retries": 1,
-        "processing_start_time": "2024-01-01T10:00:00.000Z"
-    }
+    print("✅ Detection completed successfully!")
+    for col, anomaly_list in anomalies.items():
+        print(f"   - {col}: {len(anomaly_list.anomalies)} anomalies detected")
     
-    print("✅ Enhanced metadata tracking includes:")
-    for key, value in sample_metadata.items():
-        print(f"   - {key}: {value}")
+    # Show the actual metadata that gets tracked
+    if anomalies:
+        first_anomaly_list = next(iter(anomalies.values()))
+        if hasattr(first_anomaly_list, 'metadata'):
+            print("✅ Enhanced metadata tracking includes:")
+            for key, value in first_anomaly_list.metadata.items():
+                print(f"   - {key}: {value}")
     
     print("✅ Each node adds its own timing and performance metrics")
     print("✅ Error handling includes detailed failure information")

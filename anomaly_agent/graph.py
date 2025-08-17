@@ -30,7 +30,7 @@ class GraphManager:
     def get_or_create_graph(self, config, llm: ChatOpenAI):
         """Get or create a compiled graph for the given configuration."""
         # Create a cache key based on verification setting (main differentiator)
-        cache_key = f"verify_{config.verify_anomalies}_retries_{config.max_retries}"
+        cache_key = f"verify_{config.verify_anomalies}_steps_{config.n_verify_steps}_retries_{config.max_retries}"
         
         if cache_key not in self._compiled_graphs:
             self._compiled_graphs[cache_key] = self._create_graph(config, llm)
@@ -50,19 +50,37 @@ class GraphManager:
         graph.add_node("detect", detection_node)
         graph.add_node("error", error_node)
         
-        # Add verification node if needed
+        # Add verification nodes if needed
+        verify_node_names = []
         if config.verify_anomalies:
             verification_node = self._get_or_create_node("verification", VerificationNode, llm)
-            graph.add_node("verify", verification_node)
+            for i in range(config.n_verify_steps):
+                node_name = f"verify_{i+1}" if config.n_verify_steps > 1 else "verify"
+                graph.add_node(node_name, verification_node)
+                verify_node_names.append(node_name)
         
         # Add edges based on configuration
         if config.verify_anomalies:
+            # Connect detection to first verification step
+            first_verify = verify_node_names[0]
             graph.add_conditional_edges(
                 "detect", 
                 should_verify, 
-                {"verify": "verify", "end": END, "error": "error"}
+                {"verify": first_verify, "end": END, "error": "error"}
             )
-            graph.add_edge("verify", END)
+            
+            # Chain verification steps together
+            for i in range(len(verify_node_names)):
+                current_verify = verify_node_names[i]
+                if i < len(verify_node_names) - 1:
+                    # More verification steps to go
+                    next_verify = verify_node_names[i + 1]
+                    graph.add_edge(current_verify, next_verify)
+                else:
+                    # Last verification step, go to end
+                    graph.add_edge(current_verify, END)
+            
+            # Error handling
             graph.add_conditional_edges(
                 "error",
                 lambda state: "detect" if state.retry_count < config.max_retries else "end",

@@ -116,8 +116,24 @@ class VerificationNode:
             state.processing_metadata.get("verification_prompt", DEFAULT_VERIFY_SYSTEM_PROMPT)
         )
         
+        # Check for debug mode and setup logging
+        debug = state.processing_metadata.get("debug", False)
+        if debug and not self.logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            self.logger.addHandler(handler)
+            self.logger.setLevel(logging.DEBUG)
+        
+        verification_step = state.processing_metadata.get("verification_node_calls", 0) + 1
+        total_steps = state.processing_metadata.get("n_verify_steps", 1)
+        self.logger.debug(f"VerificationNode: Processing {state.variable_name} (step {verification_step}/{total_steps})")
+        
         try:
-            if state.detected_anomalies is None:
+            # Use verified_anomalies if available (for subsequent verification steps),
+            # otherwise use detected_anomalies (for first verification step)
+            anomalies_to_verify = state.verified_anomalies or state.detected_anomalies
+            
+            if anomalies_to_verify is None:
                 return {
                     "verified_anomalies": None, 
                     "current_step": "end",
@@ -135,7 +151,7 @@ class VerificationNode:
                         f"value: {a.variable_value}, "
                         f"Description: {a.anomaly_description}"
                     )
-                    for a in state.detected_anomalies.anomalies
+                    for a in anomalies_to_verify.anomalies
                 ]
             )
 
@@ -148,15 +164,19 @@ class VerificationNode:
                 }
             )
             
+            verification_step = state.processing_metadata.get("verification_node_calls", 0) + 1
+            
+            self.logger.debug(f"VerificationNode: Step {verification_step} filtered {len(anomalies_to_verify.anomalies)} → {len(result.anomalies) if result else 0} anomalies")
+            
             return {
                 "verified_anomalies": result, 
                 "current_step": "end",
                 "processing_metadata": {
                     **state.processing_metadata,
-                    "verification_completed": datetime.now().isoformat(),
-                    "anomalies_verified": len(result.anomalies) if result else 0,
-                    "verification_node_calls": state.processing_metadata.get("verification_node_calls", 0) + 1,
-                    "anomalies_before_verification": len(state.detected_anomalies.anomalies)
+                    f"verification_{verification_step}_completed": datetime.now().isoformat(),
+                    f"anomalies_after_verification_{verification_step}": len(result.anomalies) if result else 0,
+                    "verification_node_calls": verification_step,
+                    "anomalies_before_current_verification": len(anomalies_to_verify.anomalies)
                 }
             }
         except Exception as e:
