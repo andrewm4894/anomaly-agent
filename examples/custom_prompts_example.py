@@ -6,7 +6,11 @@ to customize the behavior of the anomaly detection agent.
 """
 
 import pandas as pd
+from dotenv import load_dotenv
 from anomaly_agent import AnomalyAgent
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create sample time series data
 data = {

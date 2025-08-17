@@ -242,6 +242,94 @@ class TestAsyncStreaming:
         assert 'Timestamp column' in events[0]['data']['error']
 
 
+class TestParallelParameter:
+    """Test the new parallel parameter in detect_anomalies."""
+    
+    def test_detect_anomalies_with_parallel_true(self, mock_agent, sample_df):
+        """Test detect_anomalies with parallel=True parameter."""
+        with patch.object(mock_agent._graph_manager, 'get_or_create_graph') as mock_graph:
+            mock_app = Mock()
+            mock_app.invoke.return_value = {'detected_anomalies': AnomalyList(anomalies=[])}
+            mock_graph.return_value = mock_app
+            
+            # This should internally use detect_anomalies_parallel
+            result = mock_agent.detect_anomalies(sample_df, parallel=True, max_concurrent=2)
+            
+            assert isinstance(result, dict)
+            assert len(result) == 2  # temperature and pressure
+            assert all(isinstance(anomaly_list, AnomalyList) for anomaly_list in result.values())
+
+    def test_detect_anomalies_with_progress_callback(self, mock_agent, sample_df):
+        """Test detect_anomalies with progress_callback (should use streaming mode)."""
+        callback_calls = []
+        
+        def test_callback(column, event, data):
+            callback_calls.append({'column': column, 'event': event, 'data': data})
+        
+        with patch.object(mock_agent._graph_manager, 'get_or_create_graph') as mock_graph:
+            mock_app = Mock()
+            mock_app.stream.return_value = [{'detect': {'detected_anomalies': AnomalyList(anomalies=[])}}]
+            mock_app.invoke.return_value = {'detected_anomalies': AnomalyList(anomalies=[])}
+            mock_graph.return_value = mock_app
+            
+            # This should internally use detect_anomalies_streaming
+            result = mock_agent.detect_anomalies(sample_df, progress_callback=test_callback)
+            
+            assert isinstance(result, dict)
+            assert len(result) == 2
+            assert len(callback_calls) > 0  # Should have received callbacks
+
+    def test_detect_anomalies_parallel_with_progress(self, mock_agent, sample_df):
+        """Test detect_anomalies with both parallel=True and progress_callback."""
+        callback_calls = []
+        
+        def test_callback(column, event, data):
+            callback_calls.append({'column': column, 'event': event, 'data': data})
+        
+        with patch.object(mock_agent._graph_manager, 'get_or_create_graph') as mock_graph:
+            mock_app = Mock()
+            mock_app.invoke.return_value = {'detected_anomalies': AnomalyList(anomalies=[])}
+            mock_graph.return_value = mock_app
+            
+            # This should use parallel mode with progress callbacks
+            result = mock_agent.detect_anomalies(
+                sample_df, 
+                parallel=True, 
+                max_concurrent=2,
+                progress_callback=test_callback
+            )
+            
+            assert isinstance(result, dict)
+            assert len(result) == 2
+
+    def test_detect_anomalies_sequential_mode(self, mock_agent, sample_df):
+        """Test detect_anomalies in default sequential mode."""
+        with patch.object(mock_agent._graph_manager, 'get_or_create_graph') as mock_graph:
+            mock_app = Mock()
+            mock_app.invoke.return_value = {'detected_anomalies': AnomalyList(anomalies=[])}
+            mock_graph.return_value = mock_app
+            
+            # This should use sequential processing (default mode)
+            result = mock_agent.detect_anomalies(sample_df)
+            
+            assert isinstance(result, dict)
+            assert len(result) == 2
+            assert all(isinstance(anomaly_list, AnomalyList) for anomaly_list in result.values())
+
+    def test_parallel_safe_execution_outside_event_loop(self, mock_agent, sample_df):
+        """Test that _run_parallel_safely works when no event loop is running."""
+        with patch.object(mock_agent._graph_manager, 'get_or_create_graph') as mock_graph:
+            mock_app = Mock()
+            mock_app.invoke.return_value = {'detected_anomalies': AnomalyList(anomalies=[])}
+            mock_graph.return_value = mock_app
+            
+            # This should use asyncio.run() path
+            result = mock_agent._run_parallel_safely(sample_df)
+            
+            assert isinstance(result, dict)
+            assert len(result) == 2
+
+
 class TestConfigurationCompatibility:
     """Test compatibility with existing configuration options."""
     

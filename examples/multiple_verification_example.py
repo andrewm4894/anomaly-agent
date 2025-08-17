@@ -6,7 +6,11 @@ verification, helping to reduce false positives through the stochastic nature of
 """
 
 import pandas as pd
+from dotenv import load_dotenv
 from anomaly_agent import AnomalyAgent
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create test data with clear anomalies
 data = {
@@ -177,4 +181,4 @@ print("• Consider cost implications: each step multiplies verification costs")
 
 if __name__ == "__main__":
     print("\n🚀 Multiple verification steps ready for use!")
-    print("Set OPENAI_API_KEY environment variable to test with real data.")
+    print("Create a .env file with OPENAI_API_KEY=your_key_here to test with real data.")

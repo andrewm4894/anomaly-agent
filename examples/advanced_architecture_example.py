@@ -11,8 +11,12 @@ This example showcases the modern architecture improvements:
 import pandas as pd
 import numpy as np
 import time
+from dotenv import load_dotenv
 from anomaly_agent import AnomalyAgent, GraphManager, DetectionNode, VerificationNode, ErrorHandlerNode
 from langchain_openai import ChatOpenAI
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def demonstrate_graph_caching():

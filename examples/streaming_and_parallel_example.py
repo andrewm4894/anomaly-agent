@@ -8,8 +8,12 @@ for improved user experience and performance with multiple time series variables
 import asyncio
 import pandas as pd
 import time
+from dotenv import load_dotenv
 from anomaly_agent import AnomalyAgent
 from anomaly_agent.streaming import StreamingProgressHandler
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create sample multi-variable time series data
 print("=== Creating Sample Data ===")
@@ -186,4 +190,4 @@ print("• Async Streaming: Web applications, reactive UIs, progressive data loa
 
 if __name__ == "__main__":
     print("\n🎉 Streaming and parallel processing example complete!")
-    print("Set OPENAI_API_KEY environment variable to test with real data.")
+    print("Create a .env file with OPENAI_API_KEY=your_key_here to test with real data.")

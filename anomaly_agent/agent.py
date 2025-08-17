@@ -5,9 +5,11 @@ This module contains the main AnomalyAgent class and Pydantic models for
 configuration and state management.
 """
 
+import asyncio
 import logging
+import threading
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, Any, Annotated
+from typing import Dict, List, Literal, Optional, Any, Annotated, Callable
 from operator import add
 
 import numpy as np
@@ -238,8 +240,16 @@ class AnomalyAgent(StreamingMixin):
         timestamp_col: Optional[str] = None,
         verify_anomalies: Optional[bool] = None,
         n_verify_steps: Optional[int] = None,
+        parallel: bool = False,
+        max_concurrent: int = 3,
+        progress_callback: Optional[Callable[[str, str, Dict[str, Any]], None]] = None,
     ) -> Dict[str, AnomalyList]:
         """Detect anomalies in the given time series data.
+
+        This method supports multiple execution modes:
+        1. Sequential (default): Process columns one by one
+        2. Streaming: Process with real-time progress updates (when progress_callback provided)
+        3. Parallel: Process multiple columns concurrently (when parallel=True)
 
         Args:
             df: DataFrame containing the time series data
@@ -248,10 +258,50 @@ class AnomalyAgent(StreamingMixin):
                 instance default (default: None)
             n_verify_steps: Number of verification steps to run. If None, uses the
                 instance default (default: None)
+            parallel: Whether to use parallel processing for multiple columns (default: False)
+            max_concurrent: Maximum number of concurrent tasks when parallel=True (default: 3)
+            progress_callback: Optional callback for progress updates. If provided without
+                parallel=True, uses streaming mode for real-time updates (default: None)
 
         Returns:
             Dictionary mapping column names to their respective AnomalyList
+            
+        Examples:
+            # Sequential processing (default)
+            anomalies = agent.detect_anomalies(df)
+            
+            # Parallel processing
+            anomalies = agent.detect_anomalies(df, parallel=True, max_concurrent=5)
+            
+            # Streaming with progress updates
+            def progress(col, event, data):
+                print(f"[{col}] {event}: {data}")
+            anomalies = agent.detect_anomalies(df, progress_callback=progress)
+            
+            # Parallel with progress updates
+            anomalies = agent.detect_anomalies(df, parallel=True, progress_callback=progress)
         """
+        # Use parallel processing if requested
+        if parallel:
+            return self._run_parallel_safely(
+                df=df,
+                timestamp_col=timestamp_col,
+                verify_anomalies=verify_anomalies,
+                n_verify_steps=n_verify_steps,
+                max_concurrent=max_concurrent,
+                progress_callback=progress_callback,
+            )
+        
+        # Use streaming processing if progress_callback is provided
+        if progress_callback:
+            return self.detect_anomalies_streaming(
+                df=df,
+                timestamp_col=timestamp_col,
+                verify_anomalies=verify_anomalies,
+                n_verify_steps=n_verify_steps,
+                progress_callback=progress_callback,
+            )
+
         # Handle dynamic configuration efficiently with graph manager
         current_timestamp_col = timestamp_col or self.config.timestamp_col
         current_verify = verify_anomalies if verify_anomalies is not None else self.config.verify_anomalies
@@ -288,7 +338,7 @@ class AnomalyAgent(StreamingMixin):
         # Convert DataFrame to string format
         df_str = df.to_string(index=False)
 
-        # Process each numeric column
+        # Process each numeric column sequentially (standard mode)
         results = {}
         for col in numeric_cols:
             self.logger.debug(f"Processing column: {col}")
@@ -409,3 +459,78 @@ class AnomalyAgent(StreamingMixin):
             return df_wide
 
         return df
+
+    def _run_parallel_safely(
+        self,
+        df: pd.DataFrame,
+        timestamp_col: Optional[str] = None,
+        verify_anomalies: Optional[bool] = None,
+        n_verify_steps: Optional[int] = None,
+        max_concurrent: int = 3,
+        progress_callback: Optional[Callable[[str, str, Dict[str, Any]], None]] = None,
+    ) -> Dict[str, AnomalyList]:
+        """Safely run parallel processing, handling existing event loops.
+        
+        This method detects if we're already in an event loop (like Jupyter notebooks)
+        and handles the async execution appropriately.
+        
+        Args:
+            df: DataFrame containing time series data
+            timestamp_col: Name of the timestamp column (optional)
+            verify_anomalies: Whether to verify detected anomalies (optional)
+            n_verify_steps: Number of verification steps to run (optional)
+            max_concurrent: Maximum number of concurrent tasks (default: 3)
+            progress_callback: Optional callback for progress updates (default: None)
+            
+        Returns:
+            Dictionary mapping column names to their respective AnomalyList
+        """
+        try:
+            # Check if we're already in an event loop
+            asyncio.get_running_loop()
+            # If we get here, we're in an event loop (like Jupyter)
+            # We need to use a different approach
+            
+            # Create a result container
+            result = None
+            exception = None
+            
+            def run_in_thread():
+                nonlocal result, exception
+                try:
+                    # Create a new event loop for this thread
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        result = loop.run_until_complete(self.detect_anomalies_parallel(
+                            df=df,
+                            timestamp_col=timestamp_col,
+                            verify_anomalies=verify_anomalies,
+                            n_verify_steps=n_verify_steps,
+                            max_concurrent=max_concurrent,
+                            progress_callback=progress_callback,
+                        ))
+                    finally:
+                        loop.close()
+                except Exception as e:
+                    exception = e
+            
+            # Run the async code in a separate thread
+            thread = threading.Thread(target=run_in_thread)
+            thread.start()
+            thread.join()
+            
+            if exception:
+                raise exception
+            return result
+            
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            return asyncio.run(self.detect_anomalies_parallel(
+                df=df,
+                timestamp_col=timestamp_col,
+                verify_anomalies=verify_anomalies,
+                n_verify_steps=n_verify_steps,
+                max_concurrent=max_concurrent,
+                progress_callback=progress_callback,
+            ))
