@@ -6,22 +6,40 @@ data using language models.
 """
 
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, TypedDict
+from typing import Dict, List, Literal, Optional, TypedDict, Union
 
 import numpy as np
 import pandas as pd
+from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field, validator
 
-from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
+from .constants import (
+    ANTHROPIC_MODELS,
+    DEFAULT_MODEL_NAME,
+    DEFAULT_TIMESTAMP_COL,
+    OPENAI_MODELS,
+    TIMESTAMP_FORMAT,
+)
 from .prompt import (
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_VERIFY_SYSTEM_PROMPT,
     get_detection_prompt,
     get_verification_prompt,
 )
+
+
+def _create_llm(model_name: str):
+    """Create appropriate LLM instance based on model name."""
+    if model_name in ANTHROPIC_MODELS:
+        return ChatAnthropic(model=model_name)
+    elif model_name in OPENAI_MODELS:
+        return ChatOpenAI(model=model_name)
+    else:
+        # Default to OpenAI for unknown models
+        return ChatOpenAI(model=model_name)
 
 
 class Anomaly(BaseModel):
@@ -104,7 +122,7 @@ class AgentState(TypedDict, total=False):
 
 
 def create_detection_node(
-    llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTEM_PROMPT
+    llm: Union[ChatOpenAI, ChatAnthropic], detection_prompt: str = DEFAULT_SYSTEM_PROMPT
 ) -> ToolNode:
     """Create the detection node for the graph."""
     chain = get_detection_prompt(detection_prompt) | llm.with_structured_output(
@@ -125,7 +143,7 @@ def create_detection_node(
 
 
 def create_verification_node(
-    llm: ChatOpenAI, verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT
+    llm: Union[ChatOpenAI, ChatAnthropic], verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT
 ) -> ToolNode:
     """Create the verification node for the graph."""
     chain = get_verification_prompt(verification_prompt) | llm.with_structured_output(
@@ -179,7 +197,7 @@ class AnomalyAgent:
         """Initialize the AnomalyAgent with a specific model.
 
         Args:
-            model_name: The name of the OpenAI model to use
+            model_name: The name of the LLM model to use (OpenAI or Anthropic)
             timestamp_col: The name of the timestamp column
             verify_anomalies: Whether to verify detected anomalies (default: True)
             detection_prompt: System prompt for anomaly detection.
@@ -187,7 +205,7 @@ class AnomalyAgent:
             verification_prompt: System prompt for anomaly verification.
                 Defaults to the standard verification prompt.
         """
-        self.llm = ChatOpenAI(model=model_name)
+        self.llm = _create_llm(model_name)
         self.timestamp_col = timestamp_col
         self.verify_anomalies = verify_anomalies
         self.detection_prompt = detection_prompt

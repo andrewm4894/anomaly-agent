@@ -32,6 +32,7 @@ dependencies = [
     "matplotlib",
     "langgraph",
     "python-dotenv",
+    "langchain-anthropic>=0.3.19",
 ]
 
 [project.optional-dependencies]

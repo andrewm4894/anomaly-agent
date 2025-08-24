@@ -223,25 +223,39 @@ Key configuration is handled through:
 
 ### Model Selection Guide
 
-The agent supports flexible model configuration based on your needs:
+The agent supports both OpenAI and Anthropic Claude models for flexible LLM configuration:
 
+#### OpenAI Models
 ```python
 # Default: Cost-optimized for most anomaly detection tasks
-agent = AnomalyAgent()  # Uses gpt-5-nano (~$0.05/$0.40 per 1M tokens)
+agent = AnomalyAgent()  # Uses gpt-4o-mini by default
 
-# Enhanced: Better reasoning for complex patterns
-agent = AnomalyAgent(model_name="gpt-5-mini")  # ~$0.25/$2.00 per 1M tokens
-
-# Premium: Sophisticated domain-specific analysis
-agent = AnomalyAgent(model_name="gpt-5")       # ~$1.25/$10.00 per 1M tokens
-
-# Legacy: Previous generation models still supported
-agent = AnomalyAgent(model_name="gpt-4o-mini") # ~$0.60/$2.40 per 1M tokens
+# Other OpenAI options
+agent = AnomalyAgent(model_name="gpt-4o")
+agent = AnomalyAgent(model_name="gpt-3.5-turbo")
+agent = AnomalyAgent(model_name="gpt-4")
+agent = AnomalyAgent(model_name="gpt-4-turbo")
 ```
+
+#### Anthropic Claude Models
+```python
+# Latest Claude models (requires ANTHROPIC_API_KEY environment variable)
+agent = AnomalyAgent(model_name="claude-3-5-sonnet-20241022")  # Best reasoning
+agent = AnomalyAgent(model_name="claude-3-5-haiku-20241022")   # Fast and efficient
+agent = AnomalyAgent(model_name="claude-3-opus-20240229")      # Most capable
+agent = AnomalyAgent(model_name="claude-3-sonnet-20240229")    # Balanced
+agent = AnomalyAgent(model_name="claude-3-haiku-20240307")     # Fastest
+```
+
+#### Environment Variables Required
+- **OpenAI models**: `OPENAI_API_KEY`
+- **Anthropic models**: `ANTHROPIC_API_KEY`
+
+Both can be set in your `.env` file and are automatically loaded by the AnomalyAgent.
 
 ## Testing Requirements
 
-- Tests require `OPENAI_API_KEY` environment variable (automatically loaded from `.env` file by AnomalyAgent)
+- Tests require `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` environment variable (automatically loaded from `.env` file by AnomalyAgent)
 - **Simple testing**: Just run `make test` - uv handles .venv management automatically
 - All tests should maintain coverage above current thresholds
 - New features should include both unit tests and integration tests
