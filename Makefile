@@ -1,40 +1,62 @@
-.PHONY: requirements-compile
-.PHONY: requirements-install
-.PHONY: requirements-dev
+.PHONY: sync sync-dev install install-dev
 .PHONY: build publish tests
 .PHONY: pre-commit pre-commit-install pre-commit-fix
 .PHONY: examples
 
+# uv commands for dependency management
+sync:
+	uv sync
 
-requirements-compile:
-	pip-compile requirements.compile
+sync-dev:
+	uv sync --group dev
 
-requirements-install:
-	pip install -r requirements.txt
+install:
+	uv sync
 
-requirements-dev:
-	pip install -r requirements-dev.txt
+install-dev:
+	uv sync --group dev
+
+# Legacy aliases for backward compatibility
+requirements-install: sync
+
+requirements-dev: sync-dev
 
 build:
-	@python -m build
+	uv build
 
 publish:
-	@python -c "import glob; import os; files = glob.glob('dist/*.whl') + glob.glob('dist/*.tar.gz'); latest = max(files, key=os.path.getctime) if files else exit(1); print(f'Publishing: {latest}'); input('Continue? (y/n) ') == 'y' or exit(1); exit(os.system(f'twine upload {latest}'))"
+	@uv run python -c "import glob; import os; files = glob.glob('dist/*.whl') + glob.glob('dist/*.tar.gz'); latest = max(files, key=os.path.getctime) if files else exit(1); print(f'Publishing: {latest}'); input('Continue? (y/n) ') == 'y' or exit(1); exit(os.system(f'uv run twine upload {latest}'))"
 
 tests:
-	pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
+	uv run pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing
 
 test: tests
 
 pre-commit-install:
-	pip install pre-commit
-	pre-commit install
+	uv sync --group dev
+	uv run pre-commit install
 
 pre-commit:
-	pre-commit run --all-files
+	uv run pre-commit run --all-files
 
 pre-commit-fix:
-	pre-commit run --all-files --fix
+	uv run pre-commit run --all-files --fix
 
 examples:
-	@python examples/examples.py $(ARGS)
+	@uv run python examples/examples.py $(ARGS)
+
+# Additional uv-specific commands
+add:
+	uv add $(PACKAGE)
+
+add-dev:
+	uv add --group dev $(PACKAGE)
+
+remove:
+	uv remove $(PACKAGE)
+
+lock:
+	uv lock
+
+update:
+	uv sync --upgrade
