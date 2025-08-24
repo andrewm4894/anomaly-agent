@@ -28,46 +28,52 @@ The `anomaly-agent` package is a Python library for detecting anomalies in time 
 
 ## Development Commands
 
-**The Makefile now automatically manages the virtual environment!** All commands will create the venv if it doesn't exist and use it automatically.
+**This project now uses `uv` for fast, reliable dependency management!** All commands automatically manage the virtual environment (.venv) using uv.
+
+**Key uv benefits:**
+- ⚡ **Faster installs**: 10-100x faster than pip
+- 🔒 **Reproducible builds**: `uv.lock` ensures consistent dependency versions
+- 🚀 **Automatic venv management**: No need to manually create/activate virtual environments
+- 📦 **Modern dependency resolution**: Better conflict resolution and version selection
+- 🔄 **Backward compatibility**: All existing make commands continue to work
 
 ### Environment Setup
 ```bash
-# Everything is automatic! The venv is created and managed by make targets
-# First time setup:
-make requirements-install  # Creates venv + installs runtime dependencies  
-make requirements-dev      # Installs development dependencies
+# Everything is automatic with uv! Just sync dependencies:
+make sync          # Install runtime dependencies only
+make sync-dev      # Install runtime + development dependencies
+make install-dev   # Alias for sync-dev
 
-# Or install everything at once:
-make requirements-dev      # This will also install runtime dependencies
+# Legacy aliases (still work for backward compatibility):
+make requirements-install  # Maps to: uv sync
+make requirements-dev      # Maps to: uv sync --group dev
 ```
-
-## Development Commands
 
 ### Testing
 ```bash
-# Run all tests with coverage (venv managed automatically)
+# Run all tests with coverage (uv manages .venv automatically)
 make test
 # or
 make tests
 
-# For specific test files, use venv directly:
-source venv/bin/activate && pytest tests/test_agent.py -v                      # Core agent functionality
-source venv/bin/activate && pytest tests/test_prompts.py -v                    # Prompt system tests
-source venv/bin/activate && pytest tests/test_graph_architecture.py -v         # Advanced architecture tests
-source venv/bin/activate && pytest tests/test_streaming_parallel.py -v         # Streaming and parallel features
+# For specific test files:
+uv run pytest tests/test_agent.py -v                      # Core agent functionality
+uv run pytest tests/test_prompts.py -v                    # Prompt system tests
+uv run pytest tests/test_graph_architecture.py -v         # Advanced architecture tests
+uv run pytest tests/test_streaming_parallel.py -v         # Streaming and parallel features
 
 # Run architecture-specific tests:
-source venv/bin/activate && pytest tests/test_graph_architecture.py::TestGraphManager -v           # Graph caching tests
-source venv/bin/activate && pytest tests/test_graph_architecture.py::TestDetectionNode -v          # Class-based node tests
-source venv/bin/activate && pytest tests/test_graph_architecture.py::TestErrorHandlerNode -v       # Error handling tests
+uv run pytest tests/test_graph_architecture.py::TestGraphManager -v           # Graph caching tests
+uv run pytest tests/test_graph_architecture.py::TestDetectionNode -v          # Class-based node tests
+uv run pytest tests/test_graph_architecture.py::TestErrorHandlerNode -v       # Error handling tests
 
 # Integration tests (requires OPENAI_API_KEY in .env - automatically loaded by AnomalyAgent)
-source venv/bin/activate && pytest tests/ -m integration -v
+uv run pytest tests/ -m integration -v
 ```
 
 ### Code Quality
 ```bash
-# Install pre-commit hooks (venv managed automatically)
+# Install pre-commit hooks (uv manages dependencies automatically)
 make pre-commit-install
 
 # Run all pre-commit checks
@@ -76,23 +82,45 @@ make pre-commit
 # Auto-fix formatting issues
 make pre-commit-fix
 
-# For individual tools, use venv directly:
-source venv/bin/activate && black anomaly_agent/  # Code formatting (line-length: 79)
-source venv/bin/activate && isort anomaly_agent/  # Import sorting
-source venv/bin/activate && flake8 anomaly_agent/ # Linting
-source venv/bin/activate && mypy anomaly_agent/   # Type checking
+# Individual tools using uv:
+uv run black anomaly_agent/  # Code formatting (line-length: 88)
+uv run isort anomaly_agent/  # Import sorting
+uv run flake8 anomaly_agent/ # Linting
+uv run mypy anomaly_agent/   # Type checking
 ```
 
 ### Dependencies
 ```bash
-# Install development dependencies (venv managed automatically)
-make requirements-dev
+# Install dependencies with uv
+make sync-dev       # Install all dependencies (runtime + dev)
+make sync           # Install runtime dependencies only
 
-# Install runtime dependencies (venv managed automatically)
-make requirements-install
+# Add new dependencies:
+make add PACKAGE=<package-name>              # Add runtime dependency
+make add-dev PACKAGE=<package-name>          # Add development dependency
 
-# For editable development install, use venv directly:
-source venv/bin/activate && pip install -e .
+# Remove dependencies:
+make remove PACKAGE=<package-name>           # Remove any dependency
+
+# Update all dependencies:
+make update                                  # Equivalent to: uv sync --upgrade
+
+# Lock dependencies for reproducible builds:
+make lock                                    # Create/update uv.lock
+```
+
+### uv-Specific Commands
+```bash
+# Direct uv commands (for advanced usage):
+uv add pandas                    # Add runtime dependency
+uv add --group dev pytest        # Add development dependency
+uv remove matplotlib             # Remove dependency
+uv sync                          # Install dependencies from pyproject.toml
+uv sync --group dev              # Install with dev dependencies
+uv sync --upgrade                # Update all dependencies
+uv lock                          # Generate uv.lock file
+uv run python script.py          # Run Python with project dependencies
+uv run --group dev pytest tests/ # Run command with dev dependencies
 ```
 
 ### Building and Publishing
@@ -135,7 +163,7 @@ Advanced graph architecture improvements for performance and modularity:
 
 - **Reusable Compiled Graphs**: Eliminated graph recreation overhead with intelligent caching (80% performance improvement)
 - **Class-based Node Architecture**: `DetectionNode`, `VerificationNode`, and `ErrorHandlerNode` classes with proper separation of concerns
-- **GraphManager System**: Centralized graph and node instance caching across agent instances (90% memory efficiency improvement)  
+- **GraphManager System**: Centralized graph and node instance caching across agent instances (90% memory efficiency improvement)
 - **Enhanced Error Handling**: `ErrorHandlerNode` with exponential backoff, configurable retry strategies, and detailed failure tracking
 - **Chain Caching**: LLM chains cached by prompt for efficient reuse across invocations
 - **Dynamic Configuration**: Runtime configuration changes use cached graphs without recreation overhead
@@ -172,7 +200,7 @@ The test suite covers multiple architectural layers:
 - Pydantic model validation (Anomaly, AnomalyList, AgentConfig, AgentState)
 - Backward compatibility with existing API
 
-### Advanced Architecture (`test_graph_architecture.py`) 
+### Advanced Architecture (`test_graph_architecture.py`)
 - **GraphManager**: Caching behavior, graph reuse across instances
 - **Class-based Nodes**: DetectionNode, VerificationNode, ErrorHandlerNode functionality
 - **Performance**: Graph caching improvements, memory efficiency
@@ -201,7 +229,7 @@ The agent supports flexible model configuration based on your needs:
 # Default: Cost-optimized for most anomaly detection tasks
 agent = AnomalyAgent()  # Uses gpt-5-nano (~$0.05/$0.40 per 1M tokens)
 
-# Enhanced: Better reasoning for complex patterns  
+# Enhanced: Better reasoning for complex patterns
 agent = AnomalyAgent(model_name="gpt-5-mini")  # ~$0.25/$2.00 per 1M tokens
 
 # Premium: Sophisticated domain-specific analysis
@@ -214,9 +242,10 @@ agent = AnomalyAgent(model_name="gpt-4o-mini") # ~$0.60/$2.40 per 1M tokens
 ## Testing Requirements
 
 - Tests require `OPENAI_API_KEY` environment variable (automatically loaded from `.env` file by AnomalyAgent)
-- **Simple testing**: Just run `make test` - the Makefile handles venv management automatically
-- All tests should maintain coverage above current thresholds  
+- **Simple testing**: Just run `make test` - uv handles .venv management automatically
+- All tests should maintain coverage above current thresholds
 - New features should include both unit tests and integration tests
 - Use `pytest-mock` for mocking LLM calls when appropriate
 - Environment variables are automatically loaded via python-dotenv integration in AnomalyAgent
-- The venv is created and activated automatically by all make targets
+- The .venv is created and activated automatically by all uv commands
+- Dependencies are locked in `uv.lock` for reproducible test environments

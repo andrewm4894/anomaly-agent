@@ -383,11 +383,11 @@ def test_agent_without_verification(single_variable_df: pd.DataFrame) -> None:
 def test_agent_with_default_prompts(single_variable_df: pd.DataFrame) -> None:
     """Test that agent works correctly with default prompts."""
     agent = AnomalyAgent()
-    
+
     # Verify default prompts are stored
     assert agent.detection_prompt == DEFAULT_SYSTEM_PROMPT
     assert agent.verification_prompt == DEFAULT_VERIFY_SYSTEM_PROMPT
-    
+
     # Test detection still works
     anomalies = agent.detect_anomalies(single_variable_df)
     assert isinstance(anomalies, dict)
@@ -400,13 +400,15 @@ def test_agent_with_custom_detection_prompt(single_variable_df: pd.DataFrame) ->
     custom_detection = """
     You are a temperature sensor analyst. Look for temperature spikes above 3.0 degrees.
     """
-    
+
     agent = AnomalyAgent(detection_prompt=custom_detection)
-    
+
     # Verify custom prompt is stored
     assert agent.detection_prompt == custom_detection
-    assert agent.verification_prompt == DEFAULT_VERIFY_SYSTEM_PROMPT  # Should use default
-    
+    assert (
+        agent.verification_prompt == DEFAULT_VERIFY_SYSTEM_PROMPT
+    )  # Should use default
+
     # Test detection still works
     anomalies = agent.detect_anomalies(single_variable_df)
     assert isinstance(anomalies, dict)
@@ -414,18 +416,20 @@ def test_agent_with_custom_detection_prompt(single_variable_df: pd.DataFrame) ->
     assert isinstance(anomalies["temperature"], AnomalyList)
 
 
-def test_agent_with_custom_verification_prompt(single_variable_df: pd.DataFrame) -> None:
+def test_agent_with_custom_verification_prompt(
+    single_variable_df: pd.DataFrame,
+) -> None:
     """Test agent with custom verification prompt."""
     custom_verification = """
     You are extremely strict. Only confirm anomalies that are above 4.0 in absolute value.
     """
-    
+
     agent = AnomalyAgent(verification_prompt=custom_verification)
-    
+
     # Verify custom prompt is stored
     assert agent.detection_prompt == DEFAULT_SYSTEM_PROMPT  # Should use default
     assert agent.verification_prompt == custom_verification
-    
+
     # Test detection still works
     anomalies = agent.detect_anomalies(single_variable_df)
     assert isinstance(anomalies, dict)
@@ -441,16 +445,15 @@ def test_agent_with_both_custom_prompts(single_variable_df: pd.DataFrame) -> Non
     custom_verification = """
     You are a conservative verifier. Only confirm clear, obvious anomalies.
     """
-    
+
     agent = AnomalyAgent(
-        detection_prompt=custom_detection,
-        verification_prompt=custom_verification
+        detection_prompt=custom_detection, verification_prompt=custom_verification
     )
-    
+
     # Verify both custom prompts are stored
     assert agent.detection_prompt == custom_detection
     assert agent.verification_prompt == custom_verification
-    
+
     # Test detection still works
     anomalies = agent.detect_anomalies(single_variable_df)
     assert isinstance(anomalies, dict)
@@ -463,8 +466,8 @@ def test_prompt_functions_with_defaults() -> None:
     # Test detection prompt function
     detection_template = get_detection_prompt()
     assert detection_template is not None
-    
-    # Test verification prompt function  
+
+    # Test verification prompt function
     verification_template = get_verification_prompt()
     assert verification_template is not None
 
@@ -473,11 +476,11 @@ def test_prompt_functions_with_custom_prompts() -> None:
     """Test prompt functions with custom prompts."""
     custom_detection = "Custom detection prompt for testing."
     custom_verification = "Custom verification prompt for testing."
-    
+
     # Test detection prompt function with custom prompt
     detection_template = get_detection_prompt(custom_detection)
     assert detection_template is not None
-    
+
     # Test verification prompt function with custom prompt
     verification_template = get_verification_prompt(custom_verification)
     assert verification_template is not None
@@ -487,20 +490,19 @@ def test_prompt_consistency_across_calls(single_variable_df: pd.DataFrame) -> No
     """Test that custom prompts are consistently used across multiple detection calls."""
     custom_detection = "Look for values above 2.0."
     custom_verification = "Be very strict in verification."
-    
+
     agent = AnomalyAgent(
-        detection_prompt=custom_detection,
-        verification_prompt=custom_verification
+        detection_prompt=custom_detection, verification_prompt=custom_verification
     )
-    
+
     # Run detection multiple times
     anomalies1 = agent.detect_anomalies(single_variable_df)
     anomalies2 = agent.detect_anomalies(single_variable_df)
-    
+
     # Verify prompts haven't changed
     assert agent.detection_prompt == custom_detection
     assert agent.verification_prompt == custom_verification
-    
+
     # Both calls should return results
     assert isinstance(anomalies1, dict)
     assert isinstance(anomalies2, dict)
@@ -509,14 +511,14 @@ def test_prompt_consistency_across_calls(single_variable_df: pd.DataFrame) -> No
 def test_mixed_initialization_parameters() -> None:
     """Test agent initialization with custom prompts and other parameters."""
     custom_detection = "Custom detection for testing."
-    
+
     agent = AnomalyAgent(
         model_name="gpt-4o-mini",
         timestamp_col="time",
         verify_anomalies=False,
-        detection_prompt=custom_detection
+        detection_prompt=custom_detection,
     )
-    
+
     # Verify all parameters are set correctly
     assert agent.timestamp_col == "time"
     assert agent.verify_anomalies is False

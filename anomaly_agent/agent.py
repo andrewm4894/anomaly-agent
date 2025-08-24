@@ -16,7 +16,12 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field, validator
 
 from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
-from .prompt import get_detection_prompt, get_verification_prompt, DEFAULT_SYSTEM_PROMPT, DEFAULT_VERIFY_SYSTEM_PROMPT
+from .prompt import (
+    DEFAULT_SYSTEM_PROMPT,
+    DEFAULT_VERIFY_SYSTEM_PROMPT,
+    get_detection_prompt,
+    get_verification_prompt,
+)
 
 
 class Anomaly(BaseModel):
@@ -98,9 +103,13 @@ class AgentState(TypedDict, total=False):
     current_step: str
 
 
-def create_detection_node(llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTEM_PROMPT) -> ToolNode:
+def create_detection_node(
+    llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTEM_PROMPT
+) -> ToolNode:
     """Create the detection node for the graph."""
-    chain = get_detection_prompt(detection_prompt) | llm.with_structured_output(AnomalyList)
+    chain = get_detection_prompt(detection_prompt) | llm.with_structured_output(
+        AnomalyList
+    )
 
     def detection_node(state: AgentState) -> AgentState:
         """Process the state and detect anomalies."""
@@ -115,9 +124,13 @@ def create_detection_node(llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTE
     return detection_node
 
 
-def create_verification_node(llm: ChatOpenAI, verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT) -> ToolNode:
+def create_verification_node(
+    llm: ChatOpenAI, verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT
+) -> ToolNode:
     """Create the verification node for the graph."""
-    chain = get_verification_prompt(verification_prompt) | llm.with_structured_output(AnomalyList)
+    chain = get_verification_prompt(verification_prompt) | llm.with_structured_output(
+        AnomalyList
+    )
 
     def verification_node(state: AgentState) -> AgentState:
         """Process the state and verify anomalies."""
@@ -186,7 +199,9 @@ class AnomalyAgent:
         # Add nodes
         self.graph.add_node("detect", create_detection_node(self.llm, detection_prompt))
         if self.verify_anomalies:
-            self.graph.add_node("verify", create_verification_node(self.llm, verification_prompt))
+            self.graph.add_node(
+                "verify", create_verification_node(self.llm, verification_prompt)
+            )
 
         # Add edges with proper routing
         if self.verify_anomalies:
@@ -234,7 +249,9 @@ class AnomalyAgent:
         # Add nodes
         graph.add_node("detect", create_detection_node(self.llm, self.detection_prompt))
         if verify_anomalies:
-            graph.add_node("verify", create_verification_node(self.llm, self.verification_prompt))
+            graph.add_node(
+                "verify", create_verification_node(self.llm, self.verification_prompt)
+            )
 
         # Add edges with proper routing
         if verify_anomalies:

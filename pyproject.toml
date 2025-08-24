@@ -1,6 +1,73 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anomaly-agent"
+version = "0.9.0"
+authors = [
+    {name = "Andrew Maguire", email = "andrewm4894@gmail.com"},
+]
+description = "A package for detecting anomalies in time series data using LLMs"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+keywords = ["anomaly-detection", "time-series", "llm", "machine-learning"]
+
+dependencies = [
+    "pandas",
+    "plotly",
+    "pydantic",
+    "langchain-openai",
+    "langchain-core",
+    "matplotlib",
+    "langgraph",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pip-tools",
+    "nbformat",
+    "twine",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+
+[dependency-groups]
+dev = [
+    "pip-tools",
+    "nbformat",
+    "twine",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/andrewm4894/anomaly-agent"
+Repository = "https://github.com/andrewm4894/anomaly-agent"
+Issues = "https://github.com/andrewm4894/anomaly-agent/issues"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
@@ -8,14 +75,17 @@ skips = ["B101"]  # Skip assert warnings in tests
 targets = ["anomaly_agent"]
 
 [tool.black]
-line-length = 79
+line-length = 88
 target-version = ["py38"]
 include = '\.pyi?$'
 
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-line_length = 79
+line_length = 88
+
+[tool.flake8]
+max-line-length = 88
 
 [tool.mypy]
 python_version = "3.10"

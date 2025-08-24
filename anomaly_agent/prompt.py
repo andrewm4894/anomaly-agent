@@ -69,13 +69,15 @@ Be methodical and conservative - it's better to miss a borderline case than to c
 """
 
 
-def get_detection_prompt(system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> ChatPromptTemplate:
+def get_detection_prompt(
+    system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+) -> ChatPromptTemplate:
     """Get the detection prompt template.
-    
+
     Args:
         system_prompt: System prompt for anomaly detection. Defaults to the
             standard detection prompt.
-    
+
     Returns:
         ChatPromptTemplate configured for anomaly detection.
     """
@@ -88,19 +90,21 @@ def get_detection_prompt(system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> ChatProm
                 "Variable name: {variable_name}\n\n"
                 "Time series data:\n{time_series}\n\n"
                 "Identify any genuine anomalies in this data following the analysis guidelines provided. "
-                "Focus on values that are clearly unusual and would require investigation."
+                "Focus on values that are clearly unusual and would require investigation.",
             ),
         ]
     )
 
 
-def get_verification_prompt(system_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT) -> ChatPromptTemplate:
+def get_verification_prompt(
+    system_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
+) -> ChatPromptTemplate:
     """Get the verification prompt template.
-    
+
     Args:
         system_prompt: System prompt for anomaly verification. Defaults to the
             standard verification prompt.
-    
+
     Returns:
         ChatPromptTemplate configured for anomaly verification.
     """
@@ -115,7 +119,7 @@ def get_verification_prompt(system_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT) -
                 "Detected anomalies to verify:\n{detected_anomalies}\n\n"
                 "Review each detected anomaly and confirm only those that meet the strict verification criteria. "
                 "Reject any that are likely false positives or normal variations. "
-                "Return only the anomalies you would confidently flag in a production system."
+                "Return only the anomalies you would confidently flag in a production system.",
             ),
         ]
     )
