@@ -31,7 +31,7 @@ The `anomaly-agent` package is a Python library for detecting anomalies in time 
 **This project now uses `uv` for fast, reliable dependency management!** All commands automatically manage the virtual environment (.venv) using uv.
 
 **Key uv benefits:**
-- ⚡ **Faster installs**: 10-100x faster than pip 
+- ⚡ **Faster installs**: 10-100x faster than pip
 - 🔒 **Reproducible builds**: `uv.lock` ensures consistent dependency versions
 - 🚀 **Automatic venv management**: No need to manually create/activate virtual environments
 - 📦 **Modern dependency resolution**: Better conflict resolution and version selection
@@ -45,7 +45,7 @@ make sync-dev      # Install runtime + development dependencies
 make install-dev   # Alias for sync-dev
 
 # Legacy aliases (still work for backward compatibility):
-make requirements-install  # Maps to: uv sync  
+make requirements-install  # Maps to: uv sync
 make requirements-dev      # Maps to: uv sync --group dev
 ```
 
@@ -83,7 +83,7 @@ make pre-commit
 make pre-commit-fix
 
 # Individual tools using uv:
-uv run black anomaly_agent/  # Code formatting (line-length: 79)
+uv run black anomaly_agent/  # Code formatting (line-length: 88)
 uv run isort anomaly_agent/  # Import sorting
 uv run flake8 anomaly_agent/ # Linting
 uv run mypy anomaly_agent/   # Type checking
@@ -113,7 +113,7 @@ make lock                                    # Create/update uv.lock
 ```bash
 # Direct uv commands (for advanced usage):
 uv add pandas                    # Add runtime dependency
-uv add --group dev pytest        # Add development dependency  
+uv add --group dev pytest        # Add development dependency
 uv remove matplotlib             # Remove dependency
 uv sync                          # Install dependencies from pyproject.toml
 uv sync --group dev              # Install with dev dependencies
@@ -163,7 +163,7 @@ Advanced graph architecture improvements for performance and modularity:
 
 - **Reusable Compiled Graphs**: Eliminated graph recreation overhead with intelligent caching (80% performance improvement)
 - **Class-based Node Architecture**: `DetectionNode`, `VerificationNode`, and `ErrorHandlerNode` classes with proper separation of concerns
-- **GraphManager System**: Centralized graph and node instance caching across agent instances (90% memory efficiency improvement)  
+- **GraphManager System**: Centralized graph and node instance caching across agent instances (90% memory efficiency improvement)
 - **Enhanced Error Handling**: `ErrorHandlerNode` with exponential backoff, configurable retry strategies, and detailed failure tracking
 - **Chain Caching**: LLM chains cached by prompt for efficient reuse across invocations
 - **Dynamic Configuration**: Runtime configuration changes use cached graphs without recreation overhead
@@ -200,7 +200,7 @@ The test suite covers multiple architectural layers:
 - Pydantic model validation (Anomaly, AnomalyList, AgentConfig, AgentState)
 - Backward compatibility with existing API
 
-### Advanced Architecture (`test_graph_architecture.py`) 
+### Advanced Architecture (`test_graph_architecture.py`)
 - **GraphManager**: Caching behavior, graph reuse across instances
 - **Class-based Nodes**: DetectionNode, VerificationNode, ErrorHandlerNode functionality
 - **Performance**: Graph caching improvements, memory efficiency
@@ -229,7 +229,7 @@ The agent supports flexible model configuration based on your needs:
 # Default: Cost-optimized for most anomaly detection tasks
 agent = AnomalyAgent()  # Uses gpt-5-nano (~$0.05/$0.40 per 1M tokens)
 
-# Enhanced: Better reasoning for complex patterns  
+# Enhanced: Better reasoning for complex patterns
 agent = AnomalyAgent(model_name="gpt-5-mini")  # ~$0.25/$2.00 per 1M tokens
 
 # Premium: Sophisticated domain-specific analysis
@@ -243,7 +243,7 @@ agent = AnomalyAgent(model_name="gpt-4o-mini") # ~$0.60/$2.40 per 1M tokens
 
 - Tests require `OPENAI_API_KEY` environment variable (automatically loaded from `.env` file by AnomalyAgent)
 - **Simple testing**: Just run `make test` - uv handles .venv management automatically
-- All tests should maintain coverage above current thresholds  
+- All tests should maintain coverage above current thresholds
 - New features should include both unit tests and integration tests
 - Use `pytest-mock` for mocking LLM calls when appropriate
 - Environment variables are automatically loaded via python-dotenv integration in AnomalyAgent

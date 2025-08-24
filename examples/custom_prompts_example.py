@@ -6,13 +6,14 @@ to customize the behavior of the anomaly detection agent.
 """
 
 import pandas as pd
+
 from anomaly_agent import AnomalyAgent
 
 # Create sample time series data
 data = {
-    'timestamp': pd.date_range('2023-01-01', periods=100, freq='H'),
-    'temperature': [20 + i * 0.1 + (5 if i == 50 else 0) for i in range(100)],
-    'pressure': [1013 + i * 0.2 + (50 if i == 75 else 0) for i in range(100)]
+    "timestamp": pd.date_range("2023-01-01", periods=100, freq="H"),
+    "temperature": [20 + i * 0.1 + (5 if i == 50 else 0) for i in range(100)],
+    "pressure": [1013 + i * 0.2 + (50 if i == 75 else 0) for i in range(100)],
 }
 df = pd.DataFrame(data)
 
@@ -33,7 +34,7 @@ print(f"Detected anomalies with improved default prompts: {len(anomalies_default
 print("\n=== Example 2: Custom Detection Prompt ===")
 temperature_detection_prompt = """
 You are an expert in temperature anomaly detection for industrial systems.
-You specialize in identifying temperature spikes, drops, and unusual patterns that could 
+You specialize in identifying temperature spikes, drops, and unusual patterns that could
 indicate equipment malfunction or environmental changes. Focus on:
 1. Sudden temperature increases that could indicate overheating
 2. Rapid temperature drops that might suggest cooling system failure
@@ -43,11 +44,11 @@ indicate equipment malfunction or environmental changes. Focus on:
 Consider the operational context and be conservative in your detections to minimize false alarms.
 """
 
-agent_custom_detection = AnomalyAgent(
-    detection_prompt=temperature_detection_prompt
-)
+agent_custom_detection = AnomalyAgent(detection_prompt=temperature_detection_prompt)
 anomalies_custom_detection = agent_custom_detection.detect_anomalies(df)
-print(f"Detected anomalies with custom detection prompt: {len(anomalies_custom_detection)}")
+print(
+    f"Detected anomalies with custom detection prompt: {len(anomalies_custom_detection)}"
+)
 
 # Example 3: Custom verification prompt for stricter verification
 print("\n=== Example 3: Custom Verification Prompt ===")
@@ -69,17 +70,17 @@ Reject any anomalies that could be:
 Only return anomalies that require immediate attention or investigation.
 """
 
-agent_custom_verification = AnomalyAgent(
-    verification_prompt=strict_verification_prompt
-)
+agent_custom_verification = AnomalyAgent(verification_prompt=strict_verification_prompt)
 anomalies_custom_verification = agent_custom_verification.detect_anomalies(df)
-print(f"Detected anomalies with custom verification prompt: {len(anomalies_custom_verification)}")
+print(
+    f"Detected anomalies with custom verification prompt: {len(anomalies_custom_verification)}"
+)
 
 # Example 4: Both custom detection and verification prompts
 print("\n=== Example 4: Both Custom Prompts ===")
 agent_both_custom = AnomalyAgent(
     detection_prompt=temperature_detection_prompt,
-    verification_prompt=strict_verification_prompt
+    verification_prompt=strict_verification_prompt,
 )
 anomalies_both_custom = agent_both_custom.detect_anomalies(df)
 print(f"Detected anomalies with both custom prompts: {len(anomalies_both_custom)}")
@@ -90,7 +91,7 @@ financial_detection_prompt = """
 You are a financial risk analyst specializing in market anomaly detection.
 Focus on detecting:
 1. Price movements that exceed normal volatility ranges
-2. Volume spikes that could indicate unusual trading activity  
+2. Volume spikes that could indicate unusual trading activity
 3. Sudden trend reversals that might signal market shifts
 4. Patterns that could indicate market manipulation or insider trading
 
@@ -111,7 +112,7 @@ Filter out normal market movements and minor fluctuations.
 # This would work with financial time series data
 agent_financial = AnomalyAgent(
     detection_prompt=financial_detection_prompt,
-    verification_prompt=financial_verification_prompt
+    verification_prompt=financial_verification_prompt,
 )
 
 print("\n=== Key Improvements in Default Prompts ===")
@@ -122,5 +123,9 @@ print("✅ False positive reduction: Conservative approach with strict verificat
 print("✅ Actionable focus: Emphasizes anomalies that require investigation")
 print("✅ Clear guidance: Specific do's and don'ts for better consistency")
 
-print("\nExample complete! You can now customize prompts for your specific domain and use case.")
-print("The new API is cleaner - just use detection_prompt and verification_prompt parameters!") 
+print(
+    "\nExample complete! You can now customize prompts for your specific domain and use case."
+)
+print(
+    "The new API is cleaner - just use detection_prompt and verification_prompt parameters!"
+)
