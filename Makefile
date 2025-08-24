@@ -28,7 +28,7 @@ publish:
 	@uv run python -c "import glob; import os; files = glob.glob('dist/*.whl') + glob.glob('dist/*.tar.gz'); latest = max(files, key=os.path.getctime) if files else exit(1); print(f'Publishing: {latest}'); input('Continue? (y/n) ') == 'y' or exit(1); exit(os.system(f'uv run twine upload {latest}'))"
 
 tests:
-	uv run pytest tests/ -v --cov=anomaly_agent --cov-report=term-missing --cov-report=xml
+	uv run pytest tests/ -v --cov=anomaly_agent --cov-branch --cov-report=term-missing --cov-report=xml
 
 test: tests
 
