@@ -24,14 +24,14 @@ graph TD
         A[AnomalyAgent] --> B[detect_anomalies()]
         A --> C[get_anomalies_df()]
     end
-    
+
     subgraph "Workflow Layer"
         B --> D[LangGraph StateGraph]
         D --> E[Detection Node]
         D --> F[Verification Node]
         D --> G[Conditional Routing]
     end
-    
+
     subgraph "Data Layer"
         E --> H[Pydantic Models]
         F --> H
@@ -39,13 +39,13 @@ graph TD
         H --> J[Anomaly]
         H --> K[AgentState]
     end
-    
+
     subgraph "LLM Layer"
         E --> L[ChatOpenAI]
         F --> L
         L --> M[Structured Output]
     end
-    
+
     style A fill:#e1f5fe
     style D fill:#f3e5f5
     style H fill:#fff3e0
@@ -60,6 +60,14 @@ graph TD
 4. **⚡ Performance**: Optimized graph compilation and caching for minimal overhead
 5. **🔄 Extensibility**: Modular node architecture supports easy feature additions
 
+### 📦 Module Structure
+
+- `models.py` – Pydantic schemas for anomalies
+- `tools.py` – LLM chains for detection and verification
+- `nodes.py` – LangGraph node implementations
+- `graph.py` – Graph assembly utilities
+- `agent.py` – Public API orchestrating the workflow
+
 ## 🔧 Component Deep Dive
 
 ### 🤖 AnomalyAgent Class
@@ -69,7 +77,7 @@ The main entry point providing a clean, user-friendly API while orchestrating th
 ```python
 class AnomalyAgent:
     """Agent for detecting and verifying anomalies in time series data."""
-    
+
     def __init__(
         self,
         model_name: str = DEFAULT_MODEL_NAME,
@@ -82,7 +90,7 @@ class AnomalyAgent:
         self.llm = ChatOpenAI(model=model_name)
         self.timestamp_col = timestamp_col
         self.verify_anomalies = verify_anomalies
-        
+
         # Build and compile the workflow graph
         self._build_graph()
 ```
@@ -100,12 +108,12 @@ The first stage of the pipeline, responsible for initial anomaly identification.
 ```mermaid
 flowchart LR
     A[Time Series Data] --> B[Statistical Analysis]
-    B --> C[Pattern Recognition] 
+    B --> C[Pattern Recognition]
     C --> D[Domain Context]
     D --> E[LLM Processing]
     E --> F[Structured Output]
     F --> G[AnomalyList]
-    
+
     style A fill:#e1f5fe
     style E fill:#f3e5f5
     style G fill:#e8f5e8
@@ -152,12 +160,12 @@ classDiagram
         +validate_timestamp()
         +validate_variable_value()
     }
-    
+
     class AnomalyList {
         +List[Anomaly] anomalies
         +validate_anomalies()
     }
-    
+
     class AgentState {
         +str time_series
         +str variable_name
@@ -165,7 +173,7 @@ classDiagram
         +Optional[AnomalyList] verified_anomalies
         +str current_step
     }
-    
+
     AnomalyList --> Anomaly : contains
     AgentState --> AnomalyList : references
 ```
@@ -202,13 +210,13 @@ stateDiagram-v2
     VerificationNode --> FilterResults : Verified Anomalies
     FilterResults --> Output : Final Results
     Output --> [*]
-    
+
     note right of DetectionNode
         - Statistical analysis
         - Pattern recognition
         - Initial LLM processing
     end note
-    
+
     note right of VerificationNode
         - Secondary validation
         - False positive reduction
@@ -226,7 +234,7 @@ def create_detection_node(
 ) -> ToolNode:
     """Create the detection node for the graph."""
     chain = get_detection_prompt(detection_prompt) | llm.with_structured_output(AnomalyList)
-    
+
     def detection_node(state: AgentState) -> AgentState:
         """Process the state and detect anomalies."""
         result = chain.invoke({
@@ -234,7 +242,7 @@ def create_detection_node(
             "variable_name": state["variable_name"],
         })
         return {"detected_anomalies": result, "current_step": "verify"}
-    
+
     return detection_node
 ```
 
@@ -253,7 +261,7 @@ graph TD
     E --> F[Cache Compiled Graph]
     F --> G[Execute Workflow]
     D --> G
-    
+
     style C fill:#fff3e0
     style F fill:#e8f5e8
     style D fill:#e1f5fe
@@ -304,7 +312,7 @@ graph TD
     H --> K{Valid Output?}
     K -->|No| L[OutputError]
     K -->|Yes| M[Success]
-    
+
     style D fill:#ffebee
     style J fill:#ffebee
     style L fill:#ffebee
@@ -349,7 +357,7 @@ def process_llm_request(self, prompt_data):
 - Class-based node architecture
 - Enhanced error handling with exponential backoff
 
-**Phase 2: Streaming & Parallel Processing** ✅  
+**Phase 2: Streaming & Parallel Processing** ✅
 - Real-time anomaly detection streaming
 - Async parallel processing for multiple variables
 - Progress callback system
@@ -392,7 +400,7 @@ The architecture is designed for easy extension:
 The Anomaly Agent architecture prioritizes:
 
 - **🔧 Modularity**: Clear separation of concerns with reusable components
-- **⚡ Performance**: Intelligent caching and optimization strategies  
+- **⚡ Performance**: Intelligent caching and optimization strategies
 - **🛡️ Reliability**: Comprehensive error handling and validation
 - **📈 Scalability**: Designed for growth and enterprise deployment
 - **🔄 Extensibility**: Plugin architecture for custom requirements
