@@ -1,7 +1,7 @@
 .PHONY: sync sync-dev install install-dev
 .PHONY: build publish tests
 .PHONY: pre-commit pre-commit-install pre-commit-fix
-.PHONY: examples
+.PHONY: examples lint format
 
 # uv commands for dependency management
 sync:
@@ -44,6 +44,10 @@ pre-commit-fix:
 
 examples:
 	@uv run python examples/examples.py $(ARGS)
+
+lint: pre-commit
+
+format: pre-commit-fix
 
 # Additional uv-specific commands
 add:

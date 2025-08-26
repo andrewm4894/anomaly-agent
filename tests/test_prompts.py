@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from langchain_core.prompts import ChatPromptTemplate
 
-from anomaly_agent.agent import AnomalyAgent, AnomalyList
+from anomaly_agent import AnomalyAgent, AnomalyList
 from anomaly_agent.prompt import (
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_VERIFY_SYSTEM_PROMPT,

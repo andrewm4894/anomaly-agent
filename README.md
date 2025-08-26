@@ -26,7 +26,7 @@
 ## ✨ Key Features
 
 - 🧠 **LLM-Powered Detection**: Leverages advanced language models for intelligent anomaly identification
-- 🔄 **Two-Stage Pipeline**: Detection and optional verification phases to reduce false positives  
+- 🔄 **Two-Stage Pipeline**: Detection and optional verification phases to reduce false positives
 - 📊 **Multi-Variable Support**: Analyze multiple time series variables simultaneously
 - 🎯 **Domain Awareness**: Contextual understanding of different data types and domains
 - ⚡ **Modern Architecture**: Built on LangGraph with Pydantic validation and robust error handling
@@ -53,7 +53,7 @@ graph TD
     F -->|Yes| E
     F -->|No| G[❌ Filtered Out]
     G --> E
-    
+
     style A fill:#e1f5fe
     style B fill:#f3e5f5
     style D fill:#fff3e0
@@ -66,6 +66,14 @@ graph TD
 2. **✅ Verification Node** (Optional): Secondary LLM review to reduce false positives with stricter criteria
 3. **🎯 State Management**: Pydantic-based validation and error handling throughout the pipeline
 4. **📊 Multi-Variable Processing**: Parallel analysis of multiple time series columns
+
+### 📦 Module Overview
+
+- `models.py` – Pydantic data models for anomalies
+- `tools.py` – LLM chains used by the graph nodes
+- `nodes.py` – Detection and verification node implementations
+- `graph.py` – Utilities for assembling the LangGraph state machine
+- `agent.py` – High-level interface for end users
 
 ## ⚡ Quick Start
 
@@ -130,7 +138,7 @@ Explore comprehensive examples in the `examples/` folder:
 # Run basic example
 python examples/examples.py --example basic --plot
 
-# Try real-world sensor data scenario  
+# Try real-world sensor data scenario
 python examples/examples.py --example real-world --plot
 
 # Custom model and plotting
@@ -179,7 +187,7 @@ Choose the right model for your needs and budget:
 agent = AnomalyAgent(model_name="gpt-5-nano")
 
 # Enhanced reasoning
-agent = AnomalyAgent(model_name="gpt-5-mini") 
+agent = AnomalyAgent(model_name="gpt-5-mini")
 
 # Premium analysis
 agent = AnomalyAgent(model_name="gpt-5")
@@ -193,7 +201,7 @@ agent = AnomalyAgent(model_name="gpt-5")
 - **💰 Financial Services**: Fraud detection, market anomaly identification
 - **🌐 Web Analytics**: Traffic spikes, user behavior anomalies
 
-### 🔬 Science & Engineering  
+### 🔬 Science & Engineering
 - **🌡️ IoT Sensors**: Temperature, humidity, pressure monitoring
 - **⚡ Energy Systems**: Power consumption, grid stability analysis
 - **🩺 Healthcare**: Patient monitoring, medical device readings
@@ -245,7 +253,7 @@ make pre-commit
 
 # Individual tools
 uv run black anomaly_agent/    # Formatting
-uv run isort anomaly_agent/    # Import sorting  
+uv run isort anomaly_agent/    # Import sorting
 uv run flake8 anomaly_agent/   # Linting
 uv run mypy anomaly_agent/     # Type checking
 ```
@@ -284,7 +292,7 @@ For detailed technical information about the internal architecture, see [ARCHITE
 
 Key architectural features:
 - **🔧 LangGraph State Machines**: Robust workflow management with proper error handling
-- **✅ Pydantic Validation**: Type-safe data models throughout the pipeline  
+- **✅ Pydantic Validation**: Type-safe data models throughout the pipeline
 - **🎯 GraphManager Caching**: Optimized performance with reusable compiled graphs
 - **📊 Class-based Nodes**: Modular, maintainable node architecture
 - **🔄 Async Support**: Streaming and parallel processing capabilities

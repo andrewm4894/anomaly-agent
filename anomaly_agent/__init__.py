@@ -4,7 +4,8 @@ This package provides tools for detecting anomalies in time series data using
 various statistical and machine learning methods.
 """
 
-from .agent import Anomaly, AnomalyAgent, AnomalyList
+from .agent import AnomalyAgent
+from .models import Anomaly, AnomalyList
 from .plot import plot_df
 from .utils import make_anomaly_config, make_df
 
