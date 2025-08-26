@@ -1,3 +1,5 @@
+"""Pydantic models used by the anomaly agent."""
+
 from datetime import datetime
 from typing import List
 
@@ -42,12 +44,14 @@ class Anomaly(BaseModel):
 
     @validator("variable_value")  # type: ignore
     def validate_variable_value(cls, v: float) -> float:
+        """Validate that the variable value is numeric."""
         if not isinstance(v, (int, float)):
             raise ValueError("variable_value must be a number")
         return float(v)
 
     @validator("anomaly_description")  # type: ignore
     def validate_anomaly_description(cls, v: str) -> str:
+        """Validate that the anomaly description is a string."""
         if not isinstance(v, str):
             raise ValueError("anomaly_description must be a string")
         return v
@@ -60,6 +64,7 @@ class AnomalyList(BaseModel):
 
     @validator("anomalies")  # type: ignore
     def validate_anomalies(cls, v: List[Anomaly]) -> List[Anomaly]:
+        """Validate that anomalies is a list of Anomaly objects."""
         if not isinstance(v, list):
             raise ValueError("anomalies must be a list")
         return v

@@ -1,4 +1,5 @@
 """Utility chains used by anomaly detection nodes."""
+
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
@@ -24,6 +25,6 @@ def create_verification_chain(
     llm: ChatOpenAI, verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT
 ) -> Runnable:
     """Create the LLM chain for anomaly verification."""
-    return get_verification_prompt(
-        verification_prompt
-    ) | llm.with_structured_output(AnomalyList)
+    return get_verification_prompt(verification_prompt) | llm.with_structured_output(
+        AnomalyList
+    )

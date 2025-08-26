@@ -1,8 +1,14 @@
 """Graph construction utilities for the anomaly agent."""
+
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
-from .nodes import AgentState, create_detection_node, create_verification_node, should_verify
+from .nodes import (
+    AgentState,
+    create_detection_node,
+    create_verification_node,
+    should_verify,
+)
 
 
 def create_graph(

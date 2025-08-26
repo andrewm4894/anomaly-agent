@@ -1,5 +1,6 @@
 """Graph nodes for anomaly detection and verification."""
-from typing import Callable, List, Literal, Optional, TypedDict
+
+from typing import Callable, Literal, Optional, TypedDict
 
 from langchain_openai import ChatOpenAI
 
