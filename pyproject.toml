@@ -32,6 +32,8 @@ dependencies = [
     "matplotlib",
     "langgraph",
     "python-dotenv",
+    "posthog>=6.7.13",
+    "langchain>=1.0.3",
 ]
 
 [project.optional-dependencies]

@@ -8,10 +8,12 @@ agent with different types of data and scenarios.
 
 import argparse
 import os
+import uuid
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 
 from anomaly_agent.agent import AnomalyAgent
 from anomaly_agent.plot import plot_df
@@ -192,9 +194,20 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Load environment variables
+    load_dotenv()
+
     # Set OpenAI API key if provided
     if args.api_key:
         os.environ["OPENAI_API_KEY"] = args.api_key
+
+    # Set up PostHog session tracking if enabled
+    posthog_enabled = os.getenv("POSTHOG_ENABLED", "false").lower() == "true"
+    if posthog_enabled and not os.getenv("POSTHOG_AI_SESSION_ID"):
+        session_id = str(uuid.uuid4())
+        os.environ["POSTHOG_AI_SESSION_ID"] = session_id
+        print(f"🔗 PostHog Session ID: {session_id}")
+        print("All traces in this session will be grouped together in PostHog.\n")
 
     # Run selected example(s)
     if args.example == "all":

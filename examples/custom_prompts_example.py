@@ -5,9 +5,22 @@ This example shows how to provide your own detection and verification prompts
 to customize the behavior of the anomaly detection agent.
 """
 
+import os
+import uuid
+
 import pandas as pd
+from dotenv import load_dotenv
 
 from anomaly_agent import AnomalyAgent
+
+# Load environment variables and set up PostHog session if enabled
+load_dotenv()
+posthog_enabled = os.getenv("POSTHOG_ENABLED", "false").lower() == "true"
+if posthog_enabled and not os.getenv("POSTHOG_AI_SESSION_ID"):
+    session_id = str(uuid.uuid4())
+    os.environ["POSTHOG_AI_SESSION_ID"] = session_id
+    print(f"🔗 PostHog Session ID: {session_id}")
+    print("All traces in this session will be grouped together in PostHog.\n")
 
 # Create sample time series data
 data = {
