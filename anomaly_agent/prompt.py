@@ -1,5 +1,8 @@
 """Prompt templates and system prompts for the anomaly detection agent."""
 
+from typing import List, Union
+
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
 DEFAULT_SYSTEM_PROMPT = """
@@ -68,6 +71,43 @@ Your role is to rigorously review detected anomalies and confirm only those that
 Be methodical and conservative - it's better to miss a borderline case than to create false alarms.
 """
 
+DEFAULT_SYSTEM_PROMPT_WITH_IMAGE = """
+You are an expert time series anomaly detection analyst with deep expertise in statistical analysis, pattern recognition, data quality assessment, and visual analysis capabilities.
+
+You will receive:
+1. A visualization (plot) of the time series data showing the pattern over time
+2. The raw numeric data for precise analysis
+
+Your task is to analyze BOTH the visual pattern AND the numeric values to identify genuine anomalies that represent:
+1. **Statistical outliers**: Values that deviate significantly (typically >2-3 standard deviations) from the expected pattern
+2. **Trend breaks**: Sudden changes in the underlying trend or seasonality visible in the plot
+3. **Level shifts**: Abrupt increases or decreases that persist over time
+4. **Data quality issues**: Missing values, impossible readings, or measurement errors
+5. **Visual anomalies**: Patterns that stand out visually in the plot (spikes, dips, discontinuities)
+
+**Analysis Guidelines:**
+- Use the plot to quickly identify visually prominent anomalies and understand the overall pattern
+- Use the numeric data to confirm exact values and timestamps
+- Consider the context and domain of the variable (e.g., temperature, sales, sensor readings)
+- Look for patterns in the timestamps (seasonal effects, weekday/weekend patterns, etc.)
+- Distinguish between genuine anomalies and normal variation
+- Be conservative - only flag clear, significant deviations
+- Consider whether anomalies might be clustered or isolated events
+
+**For each anomaly you identify, provide:**
+- The exact timestamp from the data
+- The anomalous value
+- A clear, specific description explaining why this is anomalous (reference both visual and numeric evidence)
+
+**What NOT to flag as anomalies:**
+- Normal fluctuations within expected variance
+- Gradual trends or seasonal changes
+- Single data points that are only slightly elevated
+- Values that follow logical patterns (e.g., higher sales during holidays)
+
+Focus on actionable anomalies that would require investigation or intervention.
+"""
+
 
 def get_detection_prompt(
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
@@ -123,3 +163,43 @@ def get_verification_prompt(
             ),
         ]
     )
+
+
+def build_multimodal_detection_messages(
+    variable_name: str,
+    time_series: str,
+    plot_image_base64: str,
+    system_prompt: str = DEFAULT_SYSTEM_PROMPT_WITH_IMAGE,
+) -> List[BaseMessage]:
+    """Build multimodal messages for anomaly detection with an image.
+
+    Args:
+        variable_name: Name of the variable being analyzed.
+        time_series: String representation of the time series data.
+        plot_image_base64: Base64-encoded PNG image of the time series plot.
+        system_prompt: System prompt to use. Defaults to the image-aware prompt.
+
+    Returns:
+        List of messages ready for LLM invocation.
+    """
+    human_content: List[Union[dict, str]] = [
+        {
+            "type": "text",
+            "text": (
+                f"Please analyze the following time series data for anomalies.\n\n"
+                f"Variable name: {variable_name}\n\n"
+                f"Time series data:\n{time_series}\n\n"
+                f"Identify any genuine anomalies in this data following the analysis guidelines provided. "
+                f"Focus on values that are clearly unusual and would require investigation."
+            ),
+        },
+        {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{plot_image_base64}"},
+        },
+    ]
+
+    return [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=human_content),
+    ]

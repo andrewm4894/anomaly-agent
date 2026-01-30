@@ -21,7 +21,9 @@ from pydantic import BaseModel, Field, validator
 from .constants import DEFAULT_MODEL_NAME, DEFAULT_TIMESTAMP_COL, TIMESTAMP_FORMAT
 from .prompt import (
     DEFAULT_SYSTEM_PROMPT,
+    DEFAULT_SYSTEM_PROMPT_WITH_IMAGE,
     DEFAULT_VERIFY_SYSTEM_PROMPT,
+    build_multimodal_detection_messages,
     get_detection_prompt,
     get_verification_prompt,
 )
@@ -109,6 +111,7 @@ class AgentState(TypedDict, total=False):
     """State for the anomaly detection agent."""
 
     time_series: str
+    plot_image_base64: Optional[str]
     variable_name: str
     detected_anomalies: Optional[AnomalyList]
     verified_anomalies: Optional[AnomalyList]
@@ -116,21 +119,45 @@ class AgentState(TypedDict, total=False):
 
 
 def create_detection_node(
-    llm: ChatOpenAI, detection_prompt: str = DEFAULT_SYSTEM_PROMPT
+    llm: ChatOpenAI,
+    detection_prompt: str = DEFAULT_SYSTEM_PROMPT,
+    include_plot: bool = False,
 ) -> ToolNode:
-    """Create the detection node for the graph."""
+    """Create the detection node for the graph.
+
+    Args:
+        llm: The ChatOpenAI language model to use.
+        detection_prompt: System prompt for anomaly detection.
+        include_plot: Whether to use multimodal detection with plot images.
+
+    Returns:
+        Detection node function for the LangGraph.
+    """
+    # For text-only detection, use the standard chain
     chain = get_detection_prompt(detection_prompt) | llm.with_structured_output(
         AnomalyList
     )
 
     def detection_node(state: AgentState) -> AgentState:
         """Process the state and detect anomalies."""
-        result = chain.invoke(
-            {
-                "time_series": state["time_series"],
-                "variable_name": state["variable_name"],
-            }
-        )
+        # Check if we should use multimodal detection
+        if include_plot and state.get("plot_image_base64"):
+            # Use multimodal detection with image
+            messages = build_multimodal_detection_messages(
+                variable_name=state["variable_name"],
+                time_series=state["time_series"],
+                plot_image_base64=state["plot_image_base64"],
+                system_prompt=DEFAULT_SYSTEM_PROMPT_WITH_IMAGE,
+            )
+            result = llm.with_structured_output(AnomalyList).invoke(messages)
+        else:
+            # Use standard text-only detection
+            result = chain.invoke(
+                {
+                    "time_series": state["time_series"],
+                    "variable_name": state["variable_name"],
+                }
+            )
         return {"detected_anomalies": result, "current_step": "verify"}
 
     return detection_node
@@ -188,6 +215,7 @@ class AnomalyAgent:
         detection_prompt: str = DEFAULT_SYSTEM_PROMPT,
         verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
         debug: bool = False,
+        include_plot: bool = False,
     ):
         """Initialize the AnomalyAgent with a specific model.
 
@@ -200,6 +228,9 @@ class AnomalyAgent:
             verification_prompt: System prompt for anomaly verification.
                 Defaults to the standard verification prompt.
             debug: Enable debug logging (default: False)
+            include_plot: Whether to include a time series plot image in the
+                detection prompt for multimodal analysis (default: False).
+                Requires kaleido package for image generation.
         """
         # Load .env if present
         load_dotenv()
@@ -296,12 +327,16 @@ class AnomalyAgent:
         self.verify_anomalies = verify_anomalies
         self.detection_prompt = detection_prompt
         self.verification_prompt = verification_prompt
+        self.include_plot = include_plot
 
         # Create the graph
         self.graph = StateGraph(AgentState)
 
         # Add nodes
-        self.graph.add_node("detect", create_detection_node(self.llm, detection_prompt))
+        self.graph.add_node(
+            "detect",
+            create_detection_node(self.llm, detection_prompt, include_plot=include_plot),
+        )
         if self.verify_anomalies:
             self.graph.add_node(
                 "verify", create_verification_node(self.llm, verification_prompt)
@@ -321,6 +356,42 @@ class AnomalyAgent:
 
         # Compile the graph
         self.app = self.graph.compile()
+
+    def _generate_plot_base64(
+        self, df: pd.DataFrame, timestamp_col: str, value_col: str
+    ) -> str:
+        """Generate a base64-encoded PNG plot of the time series.
+
+        Args:
+            df: DataFrame containing the time series data.
+            timestamp_col: Name of the timestamp column.
+            value_col: Name of the value column to plot.
+
+        Returns:
+            Base64-encoded PNG image string.
+        """
+        import base64
+
+        import plotly.io as pio
+
+        from .plot import plot_df
+
+        # Create a subset DataFrame with just the timestamp and value columns
+        plot_data = df[[timestamp_col, value_col]].copy()
+
+        # Generate the plot figure
+        fig = plot_df(
+            plot_data,
+            timestamp_col=timestamp_col,
+            show_anomalies=False,
+            return_fig=True,
+        )
+
+        # Convert to PNG bytes
+        png_bytes = pio.to_image(fig, format="png", width=800, height=400)
+
+        # Encode to base64
+        return base64.b64encode(png_bytes).decode("utf-8")
 
     def detect_anomalies(
         self,
@@ -351,7 +422,12 @@ class AnomalyAgent:
         graph = StateGraph(AgentState)
 
         # Add nodes
-        graph.add_node("detect", create_detection_node(self.llm, self.detection_prompt))
+        graph.add_node(
+            "detect",
+            create_detection_node(
+                self.llm, self.detection_prompt, include_plot=self.include_plot
+            ),
+        )
         if verify_anomalies:
             graph.add_node(
                 "verify", create_verification_node(self.llm, self.verification_prompt)
@@ -395,9 +471,29 @@ class AnomalyAgent:
         # Process each numeric column
         results = {}
         for col in numeric_cols:
+            # Generate plot image if enabled
+            plot_base64 = None
+            if self.include_plot:
+                try:
+                    plot_base64 = self._generate_plot_base64(
+                        df, self.timestamp_col, col
+                    )
+                    if self.debug:
+                        self._logger.debug(
+                            f"Generated plot image for column '{col}' "
+                            f"({len(plot_base64)} base64 chars)"
+                        )
+                except Exception as e:
+                    self._logger.warning(
+                        f"Failed to generate plot for column '{col}': {e}. "
+                        "Falling back to text-only detection."
+                    )
+                    plot_base64 = None
+
             # Create state for this column
             state = {
                 "time_series": df_str,
+                "plot_image_base64": plot_base64,
                 "variable_name": col,
                 "current_step": "detect",
             }
