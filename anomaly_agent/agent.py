@@ -278,20 +278,23 @@ class AnomalyAgent:
                     )
                 else:
                     try:
-                        # Build super_properties for session and span tracking
-                        super_properties = {"$ai_span_name": "anomaly_agent"}
+                        # Build super_properties for session tracking
+                        super_properties = {}
 
                         # Add session ID from environment if provided
                         ai_session_id = os.getenv("POSTHOG_AI_SESSION_ID")
                         if ai_session_id:
                             super_properties["$ai_session_id"] = ai_session_id
 
-                        # Initialize PostHog client with super_properties
-                        self.posthog_client = Posthog(
-                            posthog_api_key,
-                            host=posthog_host,
-                            super_properties=super_properties,
-                        )
+                        # Initialize PostHog client
+                        posthog_kwargs = {
+                            "api_key": posthog_api_key,
+                            "host": posthog_host,
+                        }
+                        if super_properties:
+                            posthog_kwargs["super_properties"] = super_properties
+
+                        self.posthog_client = Posthog(**posthog_kwargs)
 
                         # Build callback handler config
                         callback_config = {"client": self.posthog_client}
