@@ -256,6 +256,11 @@ class AnomalyAgent:
         self.posthog_callback_handler = None
         posthog_enabled = os.getenv("POSTHOG_ENABLED", "false").lower() == "true"
 
+        # Enable PostHog multimodal capture if include_plot is True
+        # This preserves base64 images in traces instead of redacting them
+        if include_plot and posthog_enabled:
+            os.environ["_INTERNAL_LLMA_MULTIMODAL"] = "true"
+
         if posthog_enabled:
             if not POSTHOG_AVAILABLE:
                 self._logger.warning(
