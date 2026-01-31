@@ -26,12 +26,14 @@
 ## ✨ Key Features
 
 - 🧠 **LLM-Powered Detection**: Leverages advanced language models for intelligent anomaly identification
-- 🔄 **Two-Stage Pipeline**: Detection and optional verification phases to reduce false positives  
+- 🔄 **Two-Stage Pipeline**: Detection and optional verification phases to reduce false positives
 - 📊 **Multi-Variable Support**: Analyze multiple time series variables simultaneously
+- 🖼️ **Multimodal Analysis**: Optional visual plots sent alongside data for enhanced pattern recognition
 - 🎯 **Domain Awareness**: Contextual understanding of different data types and domains
 - ⚡ **Modern Architecture**: Built on LangGraph with Pydantic validation and robust error handling
 - 🛠️ **Customizable**: Custom prompts, configurable verification, and flexible model selection
 - 📈 **Rich Output**: Structured anomaly descriptions with timestamps and confidence indicators
+- 📊 **PostHog Integration**: Built-in LLM analytics tracking when PostHog is configured
 
 ## 🚀 Installation
 
@@ -100,7 +102,8 @@ from anomaly_agent import AnomalyAgent
 agent = AnomalyAgent(
     model_name="gpt-4o-mini",           # Choose your preferred model
     verify_anomalies=True,              # Enable verification stage
-    timestamp_col="date"                # Custom timestamp column name
+    timestamp_col="date",               # Custom timestamp column name
+    include_plot=True                   # Include visual plot for multimodal analysis
 )
 
 # Custom prompts for domain-specific detection
@@ -113,6 +116,29 @@ Consider market hours and economic events in your analysis.
 agent = AnomalyAgent(detection_prompt=financial_detection_prompt)
 anomalies = agent.detect_anomalies(financial_data)
 ```
+
+### Multimodal Analysis with Visual Plots
+
+Enable `include_plot=True` to send a time series visualization alongside the numeric data. This leverages multimodal LLM capabilities (e.g., gpt-4o-mini) for enhanced pattern recognition:
+
+```python
+from anomaly_agent import AnomalyAgent
+
+# Enable visual analysis - LLM sees both the plot and numeric data
+agent = AnomalyAgent(include_plot=True)
+anomalies = agent.detect_anomalies(df)
+```
+
+When enabled:
+- A matplotlib plot is generated for each time series variable
+- The plot is encoded as base64 PNG and sent to the LLM
+- The LLM analyzes both visual patterns and numeric values
+- Works with any multimodal-capable model (gpt-4o-mini, gpt-4o, etc.)
+
+This is particularly useful for:
+- Detecting visual patterns that may not be obvious in raw numbers
+- Identifying trend changes, seasonality, and outliers
+- Getting more context-aware anomaly descriptions
 
 ## 📚 Examples and Notebooks
 
