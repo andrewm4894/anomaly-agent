@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anomaly-agent"
-version = "0.11.3"
+version = "0.11.4"
 authors = [
     {name = "Andrew Maguire", email = "andrewm4894@gmail.com"},
 ]
