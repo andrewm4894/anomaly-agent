@@ -30,16 +30,18 @@ data = {
 }
 df = pd.DataFrame(data)
 
-# Example 1: Using improved default prompts
-print("=== Example 1: Improved Default Prompts ===")
+# Example 1: Using improved default prompts with multimodal analysis
+print("=== Example 1: Improved Default Prompts (with Multimodal) ===")
 print("The default prompts have been significantly improved to provide:")
 print("- Clear statistical criteria (2-3 standard deviations)")
 print("- Domain context awareness")
 print("- Pattern recognition guidelines")
 print("- Conservative false positive reduction")
+print("- Visual plot analysis via include_plot=True (default)")
 print()
 
-agent_default = AnomalyAgent()
+# include_plot=True sends a visual plot alongside data for better pattern recognition
+agent_default = AnomalyAgent(include_plot=True)
 anomalies_default = agent_default.detect_anomalies(df)
 print(f"Detected anomalies with improved default prompts: {len(anomalies_default)}")
 
@@ -57,7 +59,9 @@ indicate equipment malfunction or environmental changes. Focus on:
 Consider the operational context and be conservative in your detections to minimize false alarms.
 """
 
-agent_custom_detection = AnomalyAgent(detection_prompt=temperature_detection_prompt)
+agent_custom_detection = AnomalyAgent(
+    detection_prompt=temperature_detection_prompt, include_plot=True
+)
 anomalies_custom_detection = agent_custom_detection.detect_anomalies(df)
 print(
     f"Detected anomalies with custom detection prompt: {len(anomalies_custom_detection)}"
@@ -83,7 +87,9 @@ Reject any anomalies that could be:
 Only return anomalies that require immediate attention or investigation.
 """
 
-agent_custom_verification = AnomalyAgent(verification_prompt=strict_verification_prompt)
+agent_custom_verification = AnomalyAgent(
+    verification_prompt=strict_verification_prompt, include_plot=True
+)
 anomalies_custom_verification = agent_custom_verification.detect_anomalies(df)
 print(
     f"Detected anomalies with custom verification prompt: {len(anomalies_custom_verification)}"
@@ -94,6 +100,7 @@ print("\n=== Example 4: Both Custom Prompts ===")
 agent_both_custom = AnomalyAgent(
     detection_prompt=temperature_detection_prompt,
     verification_prompt=strict_verification_prompt,
+    include_plot=True,
 )
 anomalies_both_custom = agent_both_custom.detect_anomalies(df)
 print(f"Detected anomalies with both custom prompts: {len(anomalies_both_custom)}")
@@ -126,6 +133,7 @@ Filter out normal market movements and minor fluctuations.
 agent_financial = AnomalyAgent(
     detection_prompt=financial_detection_prompt,
     verification_prompt=financial_verification_prompt,
+    include_plot=True,
 )
 
 print("\n=== Key Improvements in Default Prompts ===")
@@ -135,10 +143,12 @@ print("✅ Pattern recognition: Identifies trend breaks, level shifts, and seaso
 print("✅ False positive reduction: Conservative approach with strict verification")
 print("✅ Actionable focus: Emphasizes anomalies that require investigation")
 print("✅ Clear guidance: Specific do's and don'ts for better consistency")
+print("✅ Multimodal analysis: Visual plots sent to LLM via include_plot=True")
 
 print(
     "\nExample complete! You can now customize prompts for your specific domain and use case."
 )
-print(
-    "The new API is cleaner - just use detection_prompt and verification_prompt parameters!"
-)
+print("Key parameters:")
+print("  - detection_prompt: Custom prompt for anomaly detection")
+print("  - verification_prompt: Custom prompt for anomaly verification")
+print("  - include_plot=True: Enable multimodal analysis with visual plots (recommended)")

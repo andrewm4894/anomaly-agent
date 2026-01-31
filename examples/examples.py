@@ -20,8 +20,11 @@ from anomaly_agent.plot import plot_df
 from anomaly_agent.utils import make_anomaly_config, make_df
 
 
-def example_basic_usage() -> Tuple[pd.DataFrame, pd.DataFrame]:
+def example_basic_usage(include_plot: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Demonstrate basic usage of the anomaly agent with dummy data.
+
+    Args:
+        include_plot: Whether to include visual plots for multimodal analysis.
 
     Returns:
         Tuple containing the input DataFrame and the anomalies DataFrame.
@@ -32,8 +35,8 @@ def example_basic_usage() -> Tuple[pd.DataFrame, pd.DataFrame]:
     anomaly_cfg = make_anomaly_config()
     df = make_df(100, 3, anomaly_config=anomaly_cfg)
 
-    # Create agent and detect anomalies
-    agent = AnomalyAgent()
+    # Create agent and detect anomalies (include_plot enables multimodal analysis)
+    agent = AnomalyAgent(include_plot=include_plot)
     anomalies = agent.detect_anomalies(df)
 
     # Convert to DataFrame for easier viewing
@@ -44,8 +47,11 @@ def example_basic_usage() -> Tuple[pd.DataFrame, pd.DataFrame]:
     return df, df_anomalies
 
 
-def example_custom_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
+def example_custom_data(include_plot: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Demonstrate usage with custom time series data.
+
+    Args:
+        include_plot: Whether to include visual plots for multimodal analysis.
 
     Returns:
         Tuple containing the input DataFrame and the anomalies DataFrame.
@@ -67,8 +73,8 @@ def example_custom_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Create DataFrame
     df = pd.DataFrame({"timestamp": dates, "temperature": values})
 
-    # Create agent and detect anomalies
-    agent = AnomalyAgent(timestamp_col="timestamp")
+    # Create agent and detect anomalies (include_plot enables multimodal analysis)
+    agent = AnomalyAgent(timestamp_col="timestamp", include_plot=include_plot)
     anomalies = agent.detect_anomalies(df)
 
     # Convert to DataFrame for easier viewing
@@ -79,8 +85,11 @@ def example_custom_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     return df, df_anomalies
 
 
-def example_multiple_variables() -> Tuple[pd.DataFrame, pd.DataFrame]:
+def example_multiple_variables(include_plot: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Demonstrate handling of multiple variables.
+
+    Args:
+        include_plot: Whether to include visual plots for multimodal analysis.
 
     Returns:
         Tuple containing the input DataFrame and the anomalies DataFrame.
@@ -110,8 +119,8 @@ def example_multiple_variables() -> Tuple[pd.DataFrame, pd.DataFrame]:
     df.loc[15, "humidity"] = -2.0  # Humidity dip
     df.loc[20, "pressure"] = np.nan  # Missing pressure value
 
-    # Create agent and detect anomalies
-    agent = AnomalyAgent(timestamp_col="timestamp")
+    # Create agent and detect anomalies (include_plot enables multimodal analysis)
+    agent = AnomalyAgent(timestamp_col="timestamp", include_plot=include_plot)
     anomalies = agent.detect_anomalies(df)
 
     # Convert to DataFrame for easier viewing
@@ -122,8 +131,11 @@ def example_multiple_variables() -> Tuple[pd.DataFrame, pd.DataFrame]:
     return df, df_anomalies
 
 
-def example_real_world_scenario() -> Tuple[pd.DataFrame, pd.DataFrame]:
+def example_real_world_scenario(include_plot: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Simulate a real-world scenario with sensor data.
+
+    Args:
+        include_plot: Whether to include visual plots for multimodal analysis.
 
     Returns:
         Tuple containing the input DataFrame and the anomalies DataFrame.
@@ -157,8 +169,8 @@ def example_real_world_scenario() -> Tuple[pd.DataFrame, pd.DataFrame]:
     df.loc[50:52, "power_consumption"] = 2000  # Power surge
     df.loc[70, "temperature"] = np.nan  # Sensor failure
 
-    # Create agent and detect anomalies
-    agent = AnomalyAgent(timestamp_col="timestamp")
+    # Create agent and detect anomalies (include_plot enables multimodal analysis)
+    agent = AnomalyAgent(timestamp_col="timestamp", include_plot=include_plot)
     anomalies = agent.detect_anomalies(df)
 
     # Convert to DataFrame for easier viewing
@@ -192,7 +204,21 @@ def main() -> None:
         action="store_true",
         help="Plot the results",
     )
+    parser.add_argument(
+        "--include-plot",
+        action="store_true",
+        default=True,
+        help="Include visual plots for multimodal LLM analysis (default: True)",
+    )
+    parser.add_argument(
+        "--no-include-plot",
+        action="store_true",
+        help="Disable visual plots for multimodal LLM analysis",
+    )
     args = parser.parse_args()
+
+    # Handle include_plot flag
+    include_plot = args.include_plot and not args.no_include_plot
 
     # Load environment variables
     load_dotenv()
@@ -227,7 +253,7 @@ def main() -> None:
         examples = example_map[args.example]
 
     for example in examples:
-        df, df_anomalies = example()
+        df, df_anomalies = example(include_plot=include_plot)
         if args.plot:
             plot_df(df, show_anomalies=True)
 
