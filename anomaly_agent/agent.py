@@ -360,7 +360,7 @@ class AnomalyAgent:
     def _generate_plot_base64(
         self, df: pd.DataFrame, timestamp_col: str, value_col: str
     ) -> str:
-        """Generate a base64-encoded PNG plot of the time series.
+        """Generate a base64-encoded PNG plot of the time series using matplotlib.
 
         Args:
             df: DataFrame containing the time series data.
@@ -371,24 +371,50 @@ class AnomalyAgent:
             Base64-encoded PNG image string.
         """
         import base64
+        import io
 
-        import plotly.io as pio
+        import matplotlib
 
-        from .plot import plot_df
+        matplotlib.use("Agg")  # Use non-interactive backend
+        import matplotlib.dates as mdates
+        import matplotlib.pyplot as plt
 
         # Create a subset DataFrame with just the timestamp and value columns
         plot_data = df[[timestamp_col, value_col]].copy()
+        plot_data[timestamp_col] = pd.to_datetime(plot_data[timestamp_col])
 
-        # Generate the plot figure
-        fig = plot_df(
-            plot_data,
-            timestamp_col=timestamp_col,
-            show_anomalies=False,
-            return_fig=True,
+        # Create the figure
+        fig, ax = plt.subplots(figsize=(10, 4))
+
+        # Plot the time series
+        ax.plot(
+            plot_data[timestamp_col],
+            plot_data[value_col],
+            "o-",
+            markersize=4,
+            linewidth=1,
+            color="#1f77b4",
         )
 
-        # Convert to PNG bytes
-        png_bytes = pio.to_image(fig, format="png", width=800, height=400)
+        # Format the plot
+        ax.set_xlabel("Time")
+        ax.set_ylabel(value_col)
+        ax.set_title(f"Time Series: {value_col}")
+        ax.grid(True, alpha=0.3)
+
+        # Format x-axis dates
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d %H:%M"))
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+        # Tight layout
+        plt.tight_layout()
+
+        # Save to bytes buffer
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
+        buf.seek(0)
+        png_bytes = buf.getvalue()
+        plt.close(fig)
 
         # Encode to base64
         return base64.b64encode(png_bytes).decode("utf-8")

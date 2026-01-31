@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anomaly-agent"
-version = "0.11.0"
+version = "0.11.1"
 authors = [
     {name = "Andrew Maguire", email = "andrewm4894@gmail.com"},
 ]
@@ -34,7 +34,6 @@ dependencies = [
     "python-dotenv",
     "posthog>=6.7.13",
     "langchain>=1.0.3",
-    "kaleido",
 ]
 
 [project.optional-dependencies]
