@@ -306,7 +306,7 @@ class AnomalyAgent:
 
                         # Initialize PostHog client
                         posthog_kwargs = {
-                            "api_key": posthog_api_key,
+                            "project_api_key": posthog_api_key,
                             "host": posthog_host,
                         }
                         if super_properties:
