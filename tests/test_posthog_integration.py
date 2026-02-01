@@ -127,3 +127,69 @@ class TestPostHogIntegration:
                     agent = AnomalyAgent(debug=True)
                     assert agent.posthog_client is None
                     assert agent.posthog_callback_handler is None
+
+    def test_posthog_with_custom_metadata(self):
+        """Test PostHog initialization with custom metadata."""
+        from anomaly_agent.agent import POSTHOG_AVAILABLE
+
+        if not POSTHOG_AVAILABLE:
+            pytest.skip("PostHog package not available")
+
+        mock_posthog = MagicMock()
+        mock_callback = MagicMock()
+
+        with patch("anomaly_agent.agent.Posthog", return_value=mock_posthog) as posthog_cls:
+            with patch(
+                "anomaly_agent.agent.PostHogCallbackHandler", return_value=mock_callback
+            ):
+                with patch.dict(
+                    os.environ,
+                    {"POSTHOG_ENABLED": "true", "POSTHOG_API_KEY": "test-api-key"},
+                    clear=True,
+                ):
+                    custom_metadata = {
+                        "metric_batch": "test-batch",
+                        "metric_name": "test-metric",
+                        "dagster_run_id": "abc123",
+                    }
+                    agent = AnomalyAgent(posthog_metadata=custom_metadata)
+
+                    # Verify PostHog was initialized with super_properties containing metadata
+                    assert agent.posthog_client is not None
+                    call_kwargs = posthog_cls.call_args[1]
+                    assert "super_properties" in call_kwargs
+                    assert call_kwargs["super_properties"]["metric_batch"] == "test-batch"
+                    assert call_kwargs["super_properties"]["metric_name"] == "test-metric"
+                    assert call_kwargs["super_properties"]["dagster_run_id"] == "abc123"
+
+    def test_posthog_metadata_merged_with_session_id(self):
+        """Test that custom metadata is merged with session ID."""
+        from anomaly_agent.agent import POSTHOG_AVAILABLE
+
+        if not POSTHOG_AVAILABLE:
+            pytest.skip("PostHog package not available")
+
+        mock_posthog = MagicMock()
+        mock_callback = MagicMock()
+
+        with patch("anomaly_agent.agent.Posthog", return_value=mock_posthog) as posthog_cls:
+            with patch(
+                "anomaly_agent.agent.PostHogCallbackHandler", return_value=mock_callback
+            ):
+                with patch.dict(
+                    os.environ,
+                    {
+                        "POSTHOG_ENABLED": "true",
+                        "POSTHOG_API_KEY": "test-api-key",
+                        "POSTHOG_AI_SESSION_ID": "test-session-123",
+                    },
+                    clear=True,
+                ):
+                    custom_metadata = {"metric_batch": "my-batch"}
+                    agent = AnomalyAgent(posthog_metadata=custom_metadata)
+
+                    # Verify both metadata and session ID are in super_properties
+                    call_kwargs = posthog_cls.call_args[1]
+                    assert "super_properties" in call_kwargs
+                    assert call_kwargs["super_properties"]["metric_batch"] == "my-batch"
+                    assert call_kwargs["super_properties"]["$ai_session_id"] == "test-session-123"

@@ -216,6 +216,7 @@ class AnomalyAgent:
         verification_prompt: str = DEFAULT_VERIFY_SYSTEM_PROMPT,
         debug: bool = False,
         include_plot: bool = False,
+        posthog_metadata: Optional[Dict[str, str]] = None,
     ):
         """Initialize the AnomalyAgent with a specific model.
 
@@ -231,6 +232,10 @@ class AnomalyAgent:
             include_plot: Whether to include a time series plot image in the
                 detection prompt for multimodal analysis (default: False).
                 Requires kaleido package for image generation.
+            posthog_metadata: Optional dictionary of custom metadata to include
+                in PostHog traces. These are passed as super_properties and will
+                appear on all LLM events. Useful for linking traces to external
+                systems (e.g., metric_batch, run_id, etc.).
         """
         # Load .env if present
         load_dotenv()
@@ -278,8 +283,12 @@ class AnomalyAgent:
                     )
                 else:
                     try:
-                        # Build super_properties for session tracking
+                        # Build super_properties for session tracking and custom metadata
                         super_properties = {}
+
+                        # Add custom metadata if provided (these will appear on all events)
+                        if posthog_metadata:
+                            super_properties.update(posthog_metadata)
 
                         # Add session ID from environment if provided
                         ai_session_id = os.getenv("POSTHOG_AI_SESSION_ID")
@@ -320,10 +329,15 @@ class AnomalyAgent:
                                 if ai_session_id
                                 else "no session"
                             )
+                            metadata_info = (
+                                f"metadata={list(posthog_metadata.keys())}"
+                                if posthog_metadata
+                                else "no metadata"
+                            )
                             self._logger.debug(
                                 f"PostHog LLM analytics initialized (host={posthog_host}, "
                                 f"distinct_id={distinct_id or 'anonymous'}, "
-                                f"privacy_mode={privacy_mode}, {session_info})"
+                                f"privacy_mode={privacy_mode}, {session_info}, {metadata_info})"
                             )
                     except Exception as e:
                         self._logger.error(f"Failed to initialize PostHog: {e}")
