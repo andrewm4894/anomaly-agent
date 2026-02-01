@@ -217,11 +217,15 @@ class AnomalyAgent:
         debug: bool = False,
         include_plot: bool = False,
         posthog_metadata: Optional[Dict[str, str]] = None,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         """Initialize the AnomalyAgent with a specific model.
 
         Args:
-            model_name: The name of the OpenAI model to use
+            model_name: The name of the model to use. For OpenAI models, use names
+                like "gpt-4o". For OpenRouter, use provider/model format like
+                "anthropic/claude-3.5-sonnet" or "google/gemini-pro".
             timestamp_col: The name of the timestamp column
             verify_anomalies: Whether to verify detected anomalies (default: True)
             detection_prompt: System prompt for anomaly detection.
@@ -236,6 +240,11 @@ class AnomalyAgent:
                 in PostHog traces. These are passed as super_properties and will
                 appear on all LLM events. Useful for linking traces to external
                 systems (e.g., metric_batch, run_id, etc.).
+            base_url: Optional base URL for the LLM API. Use this for OpenRouter
+                ("https://openrouter.ai/api/v1") or other OpenAI-compatible APIs.
+                Falls back to OPENAI_BASE_URL or OPENROUTER_BASE_URL env vars.
+            api_key: Optional API key for the LLM provider. Falls back to
+                OPENAI_API_KEY env var (which works for OpenRouter too).
         """
         # Load .env if present
         load_dotenv()
@@ -344,7 +353,28 @@ class AnomalyAgent:
                         self.posthog_client = None
                         self.posthog_callback_handler = None
 
-        self.llm = ChatOpenAI(model=model_name)
+        # Build LLM configuration with support for OpenRouter and other providers
+        llm_kwargs: Dict[str, str] = {"model": model_name}
+
+        # Resolve base_url: parameter > OPENAI_BASE_URL > OPENROUTER_BASE_URL
+        resolved_base_url = base_url or os.getenv("OPENAI_BASE_URL") or os.getenv(
+            "OPENROUTER_BASE_URL"
+        )
+        if resolved_base_url:
+            llm_kwargs["base_url"] = resolved_base_url
+
+        # Resolve api_key: parameter > OPENAI_API_KEY (already handled by langchain)
+        if api_key:
+            llm_kwargs["api_key"] = api_key
+
+        if self.debug:
+            provider = "OpenRouter" if "openrouter" in (resolved_base_url or "") else "OpenAI"
+            self._logger.debug(
+                f"LLM initialized: model={model_name}, provider={provider}, "
+                f"base_url={resolved_base_url or 'default'}"
+            )
+
+        self.llm = ChatOpenAI(**llm_kwargs)
         self.timestamp_col = timestamp_col
         self.verify_anomalies = verify_anomalies
         self.detection_prompt = detection_prompt
