@@ -4,7 +4,7 @@
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 # Default model name for the LLM
-DEFAULT_MODEL_NAME = "gpt-4o-mini"
+DEFAULT_MODEL_NAME = "gpt-4.1-mini"
 
 # Default timestamp column name in DataFrames
 DEFAULT_TIMESTAMP_COL = "timestamp"
