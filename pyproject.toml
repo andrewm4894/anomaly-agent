@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "anomaly-agent"
-version = "0.13.1"
+version = "0.13.2"
 authors = [
     {name = "Andrew Maguire", email = "andrewm4894@gmail.com"},
 ]
@@ -90,7 +90,7 @@ line_length = 88
 max-line-length = 88
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "0.13.2"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
