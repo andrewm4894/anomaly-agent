@@ -16,6 +16,12 @@ from anomaly_agent.agent import AnomalyAgent
 class TestPostHogIntegration:
     """Test PostHog integration functionality."""
 
+    @pytest.fixture(autouse=True)
+    def _mock_chat_openai(self):
+        with patch("anomaly_agent.agent.ChatOpenAI") as mock_chat:
+            mock_chat.return_value = MagicMock()
+            yield mock_chat
+
     def test_posthog_disabled_by_default(self):
         """Test that PostHog is disabled when not configured."""
         with patch.dict(os.environ, {}, clear=True):
