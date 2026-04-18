@@ -17,12 +17,13 @@ class TestLLMConfiguration:
             mock_chat.return_value = MagicMock()
             with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=True):
                 from anomaly_agent.agent import AnomalyAgent
+                from anomaly_agent.constants import DEFAULT_MODEL_NAME
 
                 agent = AnomalyAgent()
 
                 # Verify ChatOpenAI was called with just the model
                 call_kwargs = mock_chat.call_args[1]
-                assert call_kwargs["model"] == "gpt-4o-mini"
+                assert call_kwargs["model"] == DEFAULT_MODEL_NAME
                 assert "base_url" not in call_kwargs
 
     def test_openrouter_via_env_var(self):
